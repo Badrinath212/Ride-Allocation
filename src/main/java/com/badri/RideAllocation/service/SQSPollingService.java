@@ -2,6 +2,7 @@ package com.badri.RideAllocation.service;
 
 import com.badri.RideAllocation.dto.RideResponseDto;
 import com.badri.RideAllocation.model.Ride;
+import com.badri.RideAllocation.vo.DispatchRetryEvent;
 import jakarta.annotation.PostConstruct;
 import org.springframework.data.geo.Distance;
 import org.springframework.data.geo.GeoResult;
@@ -17,10 +18,13 @@ import software.amazon.awssdk.services.sqs.SqsClient;
 import software.amazon.awssdk.services.sqs.model.DeleteMessageRequest;
 import software.amazon.awssdk.services.sqs.model.Message;
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageRequest;
+import software.amazon.awssdk.services.sqs.model.SendMessageRequest;
 import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.ObjectMapper;
 
+import java.time.Duration;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -60,6 +64,7 @@ public class SQSPollingService {
             ReceiveMessageRequest receiveMessageRequest = ReceiveMessageRequest.builder()
                     .queueUrl(dispatchSchedulingQueueUrl)
                     .waitTimeSeconds(5)
+                    .maxNumberOfMessages(10)
                     .build();
 
             List<Message> messages = sqsClient.receiveMessage(receiveMessageRequest).messages();
@@ -68,13 +73,68 @@ public class SQSPollingService {
                 System.out.println("scheduling messsages are empty");
             }
 
-            Message event = sqsClient.receiveMessage(receiveMessageRequest).messages().get(0);
+            for(Message message: messages) {
+                try {
+                    DispatchRetryEvent dispatchRetryEvent = objectMapper.readValue(message.body(), DispatchRetryEvent.class);
+                    String rideId = dispatchRetryEvent.getRideId();
+                    int startIndex = dispatchRetryEvent.getStartIndex();
 
-            try {
+                    // check the rideId status
+                    Ride rideItem = rideTable.getItem(Key.builder().partitionValue(rideId).build());
 
-            } catch(Exception e) {
-                System.out.println(e.getMessage());
+                    if(!"REQUESTED".equals(rideItem.getStatus())) {
+                        System.out.println("ride is accepted by the driver");
+                        deleteMessage(message.receiptHandle(), dispatchSchedulingQueueUrl);
+                    } else {
+                        if(startIndex >= 50) {
+                            deleteMessage(message.receiptHandle(), dispatchSchedulingQueueUrl);
+                        } else {
+
+                            String redisKey = "ride:" + rideId + ":candidates";
+
+                            List<String> driverBatch = driverService.fetchCandidateDrivers(startIndex,startIndex+4, redisKey);
+
+                            if(driverBatch.isEmpty()) {
+                                deleteMessage(message.receiptHandle(), dispatchSchedulingQueueUrl);
+                                System.out.println("No drivers are there for your ride");
+                                continue;
+                            }
+
+                            Map<String, String> rideData = new HashMap<>();
+
+                            rideData.put("rideId", rideId);
+                            rideData.put("pickupLng", rideItem.getPickupLng());
+                            rideData.put("pickupLat", rideItem.getPickupLat());
+                            rideData.put("estimatedFare", rideItem.getEstimatedFare());
+
+                            for(String driverId: driverBatch) {
+                                messagingTemplate.convertAndSend(
+                                        "/topic/driver/" + driverId,
+                                        rideData
+                                );
+                            }
+
+                            deleteMessage(message.receiptHandle(), dispatchSchedulingQueueUrl);
+
+                            dispatchRetryEvent.setStartIndex(startIndex+5);
+
+                            String jsonBody = objectMapper.writeValueAsString(dispatchRetryEvent);
+                            SendMessageRequest sendMessageRequest = SendMessageRequest.builder()
+                                    .queueUrl(dispatchSchedulingQueueUrl)
+                                    .delaySeconds(10)
+                                    .messageBody(jsonBody)
+                                    .build();
+
+                            sqsClient.sendMessage(sendMessageRequest);
+
+                            System.out.println("message is sent to dispatch queue");
+                        }
+                    }
+                } catch(Exception e) {
+                    System.out.println(e.getMessage());
+                }
             }
+
         }
     }
 
@@ -200,6 +260,33 @@ public class SQSPollingService {
 //                System.out.println("Request sent");
 //            }
 //        }
+
+        // initial notify for 5 drivers
+        List<String> driverBatch = driverService.fetchCandidateDrivers(0, 4, redisKey);
+
+        for(String driverId: driverBatch) {
+            messagingTemplate.convertAndSend(
+                    "/topic/driver/" + driverId,
+                    rideDate
+            );
+
+            System.out.println("Request sent");
+        }
+
+        DispatchRetryEvent event = new DispatchRetryEvent(rideId, 5);
+
+        String jsonBody = objectMapper.writeValueAsString(event);
+
+        SendMessageRequest sendMessageRequest = SendMessageRequest.builder()
+                .queueUrl(dispatchSchedulingQueueUrl)
+                .messageBody(jsonBody)
+                .delaySeconds(10)
+                .build();
+
+        sqsClient.sendMessage(sendMessageRequest);
+
+        System.out.println("initial dispatch event sent to queue");
+
 
         return "SQS Polling";
     }
