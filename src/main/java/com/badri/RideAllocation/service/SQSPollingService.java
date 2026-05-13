@@ -1,0 +1,248 @@
+package com.badri.RideAllocation.service;
+
+import com.badri.RideAllocation.dto.RideResponseDto;
+import com.badri.RideAllocation.model.Ride;
+import jakarta.annotation.PostConstruct;
+import org.springframework.data.geo.Distance;
+import org.springframework.data.geo.GeoResult;
+import org.springframework.data.geo.GeoResults;
+import org.springframework.data.redis.connection.RedisGeoCommands;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.stereotype.Service;
+import software.amazon.awssdk.enhanced.dynamodb.DynamoDbTable;
+import software.amazon.awssdk.enhanced.dynamodb.Key;
+import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
+import software.amazon.awssdk.services.dynamodb.model.GetItemRequest;
+import software.amazon.awssdk.services.sqs.SqsClient;
+import software.amazon.awssdk.services.sqs.model.DeleteMessageRequest;
+import software.amazon.awssdk.services.sqs.model.Message;
+import software.amazon.awssdk.services.sqs.model.ReceiveMessageRequest;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.ObjectMapper;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+
+@Service
+public class SQSPollingService {
+    private final SqsClient sqsClient;
+    private final DynamoDbClient dynamoDbClient;
+    private final DynamoDbTable<Ride> rideTable;
+    private final String rideQueueUrl = "http://sqs.ap-south-1.localhost.localstack.cloud:4566/000000000000/ride-queue";
+    private final DriverService driverService;
+    private final ObjectMapper objectMapper;
+    private final SimpMessagingTemplate messagingTemplate;
+    private final String rideResponseQueueUrl = "http://sqs.ap-south-1.localhost.localstack.cloud:4566/000000000000/ride-process";
+    private final String dispatchSchedulingQueueUrl = "http://sqs.ap-south-1.localhost.localstack.cloud:4566/000000000000/dispatch-scheduling-queue";
+
+    public SQSPollingService(SqsClient sqsClient, DynamoDbClient dynamoDbClient,
+                             DynamoDbTable<Ride> rideTable, DriverService driverService,
+                             ObjectMapper objectMapper, SimpMessagingTemplate messagingTemplate) {
+        System.out.println("constructor called");
+        this.sqsClient = sqsClient;
+        this.dynamoDbClient = dynamoDbClient;
+        this.rideTable = rideTable;
+        this.driverService = driverService;
+        this.objectMapper = objectMapper;
+        this.messagingTemplate = messagingTemplate;
+    }
+
+    @PostConstruct
+    private void startPolling() {
+        new Thread(this::pollMessages).start();
+        new Thread(this::pollRideResponses).start();
+        new Thread(this::pollSchedulingQueue).start();
+    }
+
+    private void pollSchedulingQueue() {
+        while(true) {
+            ReceiveMessageRequest receiveMessageRequest = ReceiveMessageRequest.builder()
+                    .queueUrl(dispatchSchedulingQueueUrl)
+                    .waitTimeSeconds(5)
+                    .build();
+
+            List<Message> messages = sqsClient.receiveMessage(receiveMessageRequest).messages();
+
+            if(messages.isEmpty()) {
+                System.out.println("scheduling messsages are empty");
+            }
+
+            Message event = sqsClient.receiveMessage(receiveMessageRequest).messages().get(0);
+
+            try {
+
+            } catch(Exception e) {
+                System.out.println(e.getMessage());
+            }
+        }
+    }
+
+    private void pollRideResponses() {
+        System.out.println("pollRideResponses method called");
+        while(true) {
+            System.out.println("inside the while loop of poll responses");
+            ReceiveMessageRequest receiveMessageRequest = ReceiveMessageRequest.builder()
+                    .queueUrl(rideResponseQueueUrl)
+                    .maxNumberOfMessages(10)
+                    .waitTimeSeconds(10)
+                    .build();
+
+            List<Message> messages = sqsClient.receiveMessage(receiveMessageRequest).messages();
+
+            System.out.println("ride process size " + messages.size());
+
+            for(Message message: messages) {
+                try {
+                    System.out.println("message in processrideresponse");
+                    System.out.println(message.body());
+                    RideResponseDto dto = objectMapper.readValue(message.body(), RideResponseDto.class);
+
+                    processRideResponse(dto);
+
+                    deleteMessage(message.receiptHandle(), rideResponseQueueUrl);
+                } catch(Exception e) {
+                    System.out.println(e.getMessage());
+                }
+            }
+        }
+    }
+
+    private void pollMessages() {
+        while(true) {
+            ReceiveMessageRequest receiveMessageRequest = ReceiveMessageRequest.builder()
+                    .queueUrl(rideQueueUrl)
+                    .maxNumberOfMessages(10)
+                    .waitTimeSeconds(10)
+                    .build();
+
+            List<Message> messages = sqsClient.receiveMessage(receiveMessageRequest).messages();
+
+            for(Message message: messages) {
+                try {
+                    System.out.println("Message body: " + message.body());
+
+                    Map<String, String> rideData = objectMapper.readValue(message.body(),
+                            new TypeReference<Map<String, String>>(){});
+
+                    processRide(rideData);
+
+                    deleteMessage(message.receiptHandle(),rideQueueUrl);
+                } catch(Exception e) {
+                    System.out.println(e.getMessage());
+                }
+            }
+        }
+    }
+
+    private void deleteMessage(String receiptHandle, String queueUrl) {
+        sqsClient.deleteMessage(DeleteMessageRequest.builder()
+                .queueUrl(queueUrl)
+                .receiptHandle(receiptHandle)
+                .build()
+        );
+    }
+
+    private String processRide(Map<String, String> rideDate) {
+
+
+        String rideId = rideDate.get("rideId");
+        // check the idempotency
+        Key key = Key.builder()
+                .partitionValue(rideId)
+                .build();
+        Ride rideItem = rideTable.getItem(key);
+
+
+
+        if(!"REQUESTED".equals(rideItem.getStatus())) {
+            System.out.println("Driver is already assigned");
+            return "Driver is already assigned";
+        }
+
+        // { rideId, pickUplat, pickupLng, estimatedFare }  redis member in active_drivers
+
+        // call the driver service
+
+        Double pickupLat = Double.parseDouble(rideDate.get("pickupLat"));
+        Double pickupLng = Double.parseDouble(rideDate.get("pickupLng"));
+
+        System.out.println("pickupLat :" + pickupLat);
+        System.out.println("pickLng :" + pickupLng);
+
+
+        List<GeoResult<RedisGeoCommands.GeoLocation<String>>> results = driverService.getNearestNDrivers(pickupLat, pickupLng);
+
+        List<String> drivers = new ArrayList<>();
+
+        for(GeoResult<RedisGeoCommands.GeoLocation<String>> result: results) {
+            String driverId = result.getContent().getName();
+            drivers.add(driverId);
+        }
+
+        String redisKey = "ride:" + rideId + ":candidates";
+
+        driverService.storeCandidateDrivers(drivers, redisKey);
+
+//        int batchSize = 5;
+//        int totalDrivers = 50;
+//        // notify top N drivers
+//        for(int start=0;start<totalDrivers;start+=batchSize){
+//            int end = Math.min(totalDrivers-1, start+batchSize-1);
+//            List<String> driverBatch = driverService.fetchCandidateDrivers(start, end, redisKey);
+//
+//            for(String driverId: driverBatch) {
+//                messagingTemplate.convertAndSend(
+//                        "/topic/driver/" + driverId,
+//                        rideDate
+//                );
+//
+//                System.out.println("Request sent");
+//            }
+//        }
+
+        return "SQS Polling";
+    }
+
+    public void processRideResponse(RideResponseDto dto) {
+
+        System.out.println("process Ride Response method called");
+        String rideId = dto.getRideId();
+        String driverId = dto.getDriverId();
+        String status = dto.getStatus();
+
+        System.out.println("process ride body: " + dto.toString());
+
+        System.out.println(rideId);
+        System.out.println(driverId);
+        System.out.println(status);
+
+        Ride rideItem = rideTable.getItem(Key.builder().partitionValue(rideId).build());
+
+        System.out.println(rideItem.toString());
+
+        if("ACCEPTED".equals(rideItem.getStatus())) {
+            System.out.println("Ride is accepted by other driver");
+            return;
+        }
+
+        // Driver rejects the ride & N drivers rejects need to query next N drivers
+
+        if(status.equals("REJECTED")) {
+            System.out.println("Ride is rejected by the driver");
+            return;
+        }
+
+        rideItem.setStatus(status);
+        rideTable.updateItem(rideItem);
+
+        String userId = rideItem.getUserId();
+
+        messagingTemplate.convertAndSend(
+                "/topic/rider/" + userId,
+                "Captain is on the way!"
+        );
+
+        System.out.println("Ride is processed");
+    }
+}
