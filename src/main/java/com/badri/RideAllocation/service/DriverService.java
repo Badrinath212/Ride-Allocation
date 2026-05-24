@@ -27,7 +27,7 @@ public class DriverService {
             GeoResults<RedisGeoCommands.GeoLocation<String>> results =
                     geoOperations.search("active_drivers",
                             GeoReference.fromCoordinate(pickupLng, pickupLat),
-                            new Distance(5, Metrics.KILOMETERS),
+                            new Distance(10, Metrics.KILOMETERS),
                             RedisGeoCommands.GeoSearchCommandArgs.newGeoSearchArgs().includeDistance().limit(50)
                             );
 
@@ -48,5 +48,6 @@ public class DriverService {
 
     public List<String> fetchCandidateDrivers(int start,int end, String redisKey) {
         List<String> driverBatch = redisTemplate.opsForList().range(redisKey, start, end);
+        return driverBatch;
     }
 }

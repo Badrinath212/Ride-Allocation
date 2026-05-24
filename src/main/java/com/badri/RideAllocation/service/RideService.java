@@ -83,7 +83,7 @@ public class RideService {
                     .pickupLng(pickupLng)
                     .dropLat(dropLat)
                     .dropLng(dropLng)
-                    .estimatedPrice(Double.valueOf(estimatedFare))
+                    .estimatedFare(Double.valueOf(estimatedFare))
                     .status(status)
                     .createdAt(Instant.now())
                     .updatedAt(Instant.now())

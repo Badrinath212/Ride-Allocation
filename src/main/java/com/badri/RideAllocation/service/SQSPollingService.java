@@ -8,6 +8,7 @@ import org.springframework.data.geo.Distance;
 import org.springframework.data.geo.GeoResult;
 import org.springframework.data.geo.GeoResults;
 import org.springframework.data.redis.connection.RedisGeoCommands;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbTable;
@@ -31,7 +32,6 @@ import java.util.Map;
 @Service
 public class SQSPollingService {
     private final SqsClient sqsClient;
-    private final DynamoDbClient dynamoDbClient;
     private final DynamoDbTable<Ride> rideTable;
     private final String rideQueueUrl = "http://sqs.ap-south-1.localhost.localstack.cloud:4566/000000000000/ride-queue";
     private final DriverService driverService;
@@ -39,17 +39,19 @@ public class SQSPollingService {
     private final SimpMessagingTemplate messagingTemplate;
     private final String rideResponseQueueUrl = "http://sqs.ap-south-1.localhost.localstack.cloud:4566/000000000000/ride-process";
     private final String dispatchSchedulingQueueUrl = "http://sqs.ap-south-1.localhost.localstack.cloud:4566/000000000000/dispatch-scheduling-queue";
+    private final StringRedisTemplate redisTemplate;
 
-    public SQSPollingService(SqsClient sqsClient, DynamoDbClient dynamoDbClient,
+    public SQSPollingService(SqsClient sqsClient,
                              DynamoDbTable<Ride> rideTable, DriverService driverService,
-                             ObjectMapper objectMapper, SimpMessagingTemplate messagingTemplate) {
+                             ObjectMapper objectMapper, SimpMessagingTemplate messagingTemplate,
+                             StringRedisTemplate redisTemplate) {
         System.out.println("constructor called");
         this.sqsClient = sqsClient;
-        this.dynamoDbClient = dynamoDbClient;
         this.rideTable = rideTable;
         this.driverService = driverService;
         this.objectMapper = objectMapper;
         this.messagingTemplate = messagingTemplate;
+        this.redisTemplate = redisTemplate;
     }
 
     @PostConstruct
@@ -105,7 +107,7 @@ public class SQSPollingService {
                             rideData.put("rideId", rideId);
                             rideData.put("pickupLng", rideItem.getPickupLng());
                             rideData.put("pickupLat", rideItem.getPickupLat());
-                            rideData.put("estimatedFare", rideItem.getEstimatedFare());
+                            rideData.put("estimatedFare", String.valueOf(rideItem.getEstimatedFare()));
 
                             for(String driverId: driverBatch) {
                                 messagingTemplate.convertAndSend(
@@ -242,6 +244,8 @@ public class SQSPollingService {
 
         String redisKey = "ride:" + rideId + ":candidates";
 
+        System.out.println("Drivers: " + drivers);
+
         driverService.storeCandidateDrivers(drivers, redisKey);
 
 //        int batchSize = 5;
@@ -308,10 +312,10 @@ public class SQSPollingService {
 
         System.out.println(rideItem.toString());
 
-        if("ACCEPTED".equals(rideItem.getStatus())) {
-            System.out.println("Ride is accepted by other driver");
-            return;
-        }
+//        if("ACCEPTED".equals(rideItem.getStatus())) {
+//            System.out.println("Ride is accepted by other driver");
+//            return;
+//        }
 
         // Driver rejects the ride & N drivers rejects need to query next N drivers
 
@@ -319,17 +323,34 @@ public class SQSPollingService {
             System.out.println("Ride is rejected by the driver");
             return;
         }
+        // Distributed lock to the ride if two drivers accept the same ride at same time first driver will win by using this lock
 
-        rideItem.setStatus(status);
-        rideTable.updateItem(rideItem);
+        Boolean acquired = redisTemplate.opsForValue()
+                        .setIfAbsent("ride:" + rideId + ":lock", driverId, Duration.ofMinutes(5));
 
-        String userId = rideItem.getUserId();
+        if(Boolean.TRUE.equals(acquired)) {
+            rideItem.setStatus(status);
+            rideItem.setDriverId(driverId);
+            rideTable.updateItem(rideItem);
 
-        messagingTemplate.convertAndSend(
-                "/topic/rider/" + userId,
-                "Captain is on the way!"
-        );
+            String userId = rideItem.getUserId();
 
-        System.out.println("Ride is processed");
+            messagingTemplate.convertAndSend(
+                    "/topic/rider/" + userId,
+                    "Captain is on the way!"
+            );
+
+            System.out.println("Ride is processed");
+            System.out.println("Ride is assigned to driver: " + driverId);
+        } else {
+            System.out.println("ride is already assigned to other driver");
+
+            System.out.println("/topic/driver/"+driverId);
+
+            messagingTemplate.convertAndSend(
+                    "/topic/driver/" + driverId,
+                    "Ride is already assigned to other driver"
+            );
+        }
     }
 }

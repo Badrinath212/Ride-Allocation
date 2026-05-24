@@ -22,7 +22,7 @@ public class Ride {
     private String pickupLat;
     private String dropLng;
     private String dropLat;
-    private Double estimatedPrice;
+    private Double estimatedFare;
     private Double finalFare;
     private String driverId;
     private String status;
