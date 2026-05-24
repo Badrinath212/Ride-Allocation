@@ -333,6 +333,10 @@ public class SQSPollingService {
             rideItem.setDriverId(driverId);
             rideTable.updateItem(rideItem);
 
+            // remove the driver from active drivers
+            System.out.println(driverId.getClass().getName());
+            driverService.removeDriverFromActiveDrivers(driverId, "active_drivers");
+
             String userId = rideItem.getUserId();
 
             messagingTemplate.convertAndSend(

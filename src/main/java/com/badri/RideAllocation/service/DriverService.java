@@ -50,4 +50,19 @@ public class DriverService {
         List<String> driverBatch = redisTemplate.opsForList().range(redisKey, start, end);
         return driverBatch;
     }
+
+    public void removeDriverFromActiveDrivers(String driverId, String redisKey) {
+
+        try {
+            Long count = redisTemplate.opsForZSet().remove(redisKey, driverId);
+            if (count != null && count > 0) {
+                System.out.println("Driver: " + driverId + " is remove from active drivers");
+            } else {
+                System.out.println("Something went wrong! while deleting the driver: " + driverId);
+            }
+        } catch (Exception e) {
+            System.out.println("while removing the driver from active_drivers. Failed due to " + e.getMessage());
+        }
+    }
+
 }
