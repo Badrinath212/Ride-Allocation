@@ -3,6 +3,7 @@ package com.badri.RideAllocation.controller;
 
 import com.badri.RideAllocation.dto.BookRideRequestDto;
 import com.badri.RideAllocation.dto.BookRideResponseDto;
+import com.badri.RideAllocation.dto.CompleteRideDto;
 import com.badri.RideAllocation.dto.EstFareResponseDto;
 import com.badri.RideAllocation.service.RideService;
 import jakarta.validation.Valid;
@@ -12,6 +13,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.reactive.function.client.WebClient;
+import tools.jackson.databind.annotation.JsonValueInstantiator;
 
 import java.util.HashMap;
 import java.util.List;
@@ -43,5 +45,12 @@ public class RideController {
 
         BookRideResponseDto bookRideResponseDto = rideService.bookRide(dto.getUserId(),dto.getPickupLat(),dto.getPickupLng(),dto.getDropLat(),dto.getDropLng(),dto.getEstimatedFare());
         return ResponseEntity.status(HttpStatus.CREATED).body(bookRideResponseDto);
+    }
+
+    @PostMapping("/complete")
+    public String completeRide(@Valid @RequestBody CompleteRideDto dto) {
+        System.out.println(dto.toString());
+
+        return rideService.rideComplete(dto.getRideId(), dto.getFinalLat(), dto.getFinalLng(), dto.getTimeStamp());
     }
 }

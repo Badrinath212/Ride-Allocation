@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbEnhancedClient;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbTable;
+import software.amazon.awssdk.enhanced.dynamodb.Key;
 import software.amazon.awssdk.enhanced.dynamodb.TableSchema;
 import software.amazon.awssdk.services.sqs.SqsClient;
 import software.amazon.awssdk.services.sqs.model.SendMessageRequest;
@@ -27,13 +28,17 @@ public class RideService {
     private final DynamoDbTable<Ride> rideTable;
     private final SqsClient sqsClient;
     private final ObjectMapper objectMapper;
+    private final DriverService driverService;
 
-    public RideService(WebClient webClient, DynamoDbEnhancedClient ddcEnhanced, DynamoDbTable<Ride> rideTable, SqsClient sqsClient,ObjectMapper objectMapper) {
+    public RideService(WebClient webClient, DynamoDbEnhancedClient ddcEnhanced,
+                       DynamoDbTable<Ride> rideTable, SqsClient sqsClient,
+                       ObjectMapper objectMapper, DriverService driverService) {
         this.webClient = webClient;
         this.ddcEnhanced = ddcEnhanced;
         this.rideTable = rideTable;
         this.sqsClient = sqsClient;
         this.objectMapper = objectMapper;
+        this.driverService = driverService;
     }
 
     public EstFareResponseDto getEstFare(String pickupLat,String pickupLng, String dropLat, String dropLng, String profile) {
@@ -121,5 +126,23 @@ public class RideService {
             System.out.println(e.getMessage());
         }
         return null;
+    }
+
+    public String rideComplete(String rideId, String finalLat, String finalLng, String timeStamp) {
+        try {
+            // mark the ride as completed
+            Ride rideItem = rideTable.getItem(Key.builder().partitionValue(rideId).build());
+            rideItem.setStatus("COMPLETED");
+            rideTable.updateItem(rideItem);
+
+            // need to add the driver to active_drivers
+            driverService.addDriverToActiveDrivers(rideItem.getDriverId(), finalLng, finalLat, "active_drivers");
+
+            return "Ride Completed";
+
+        } catch(Exception e) {
+            System.out.println(e.getMessage());
+        }
+        return "Something went wrong";
     }
 }

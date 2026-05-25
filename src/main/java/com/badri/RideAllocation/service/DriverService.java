@@ -65,4 +65,19 @@ public class DriverService {
         }
     }
 
+    public void addDriverToActiveDrivers(String driverId, String lng, String lat, String redisKey) {
+        try {
+            redisTemplate.opsForGeo()
+                    .add(
+                        redisKey,
+                        new Point(Double.parseDouble(lng), Double.parseDouble(lat)),
+                        driverId
+                    );
+            System.out.println("Driver: " + driverId + " is added to active drivers");
+        } catch(Exception e) {
+            System.out.println(e.getMessage());
+        }
+    }
+
+
 }
