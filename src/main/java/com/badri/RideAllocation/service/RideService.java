@@ -145,4 +145,41 @@ public class RideService {
         }
         return "Something went wrong";
     }
+
+    public String rideArrived(String rideId, String driverId, String timeStamp) {
+        try {
+            Ride rideItem = rideTable.getItem(Key.builder().partitionValue(rideId).build());
+
+            if(!driverId.equals(rideItem.getDriverId())) {
+                return "Driver do not have access to this ride";
+            }
+
+            rideItem.setStatus("DRIVER_ARRIVED");
+            rideTable.updateItem(rideItem);
+
+            return "Driver arrived!";
+        } catch(Exception e) {
+            System.out.println(e.getMessage());
+        }
+        return "Something went wrong";
+    }
+
+    public String rideStart(String rideId, String driverId, String timeStamp) {
+        try {
+            Ride rideItem = rideTable.getItem(Key.builder().partitionValue(rideId).build());
+
+            if(!driverId.equals(rideItem.getDriverId())) {
+                return "Driver do not have access to this ride";
+            }
+
+            rideItem.setStatus("RIDE_STARTED");
+            rideTable.updateItem(rideItem);
+
+            return "Ride started. Happy journey!";
+
+        } catch(Exception e) {
+            System.out.println(e.getMessage());
+        }
+        return "Something went wrong";
+    }
 }

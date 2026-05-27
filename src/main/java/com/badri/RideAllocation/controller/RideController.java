@@ -1,23 +1,12 @@
 package com.badri.RideAllocation.controller;
 
 
-import com.badri.RideAllocation.dto.BookRideRequestDto;
-import com.badri.RideAllocation.dto.BookRideResponseDto;
-import com.badri.RideAllocation.dto.CompleteRideDto;
-import com.badri.RideAllocation.dto.EstFareResponseDto;
+import com.badri.RideAllocation.dto.*;
 import com.badri.RideAllocation.service.RideService;
 import jakarta.validation.Valid;
-import lombok.RequiredArgsConstructor;
-import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.reactive.function.client.WebClient;
-import tools.jackson.databind.annotation.JsonValueInstantiator;
-
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 
 @RestController
 @RequestMapping("/ride")
@@ -52,5 +41,15 @@ public class RideController {
         System.out.println(dto.toString());
 
         return rideService.rideComplete(dto.getRideId(), dto.getFinalLat(), dto.getFinalLng(), dto.getTimeStamp());
+    }
+
+    @PostMapping("/arrived")
+    public String driverArrived(@Valid @RequestBody RideArrivedDto dto) {
+        return rideService.rideArrived(dto.getRideId, dto.getDriverId(), dto.getTimeStamp());
+    }
+
+    @PostMapping("/start")
+    public String rideStart(@Valid @RequestBody RideStartDto dto) {
+        return rideService.rideStart(dto.getRideId(), dto.getDriverId(), dto.getTimeStamp());
     }
 }
