@@ -40,16 +40,16 @@ public class RideController {
     public String completeRide(@Valid @RequestBody CompleteRideDto dto) {
         System.out.println(dto.toString());
 
-        return rideService.rideComplete(dto.getRideId(), dto.getFinalLat(), dto.getFinalLng(), dto.getTimeStamp());
+        return rideService.rideComplete(dto.getRideId(), dto.getFinalLat(), dto.getFinalLng());
     }
 
     @PostMapping("/arrived")
     public String driverArrived(@Valid @RequestBody RideArrivedDto dto) {
-        return rideService.rideArrived(dto.getRideId(), dto.getDriverId(), dto.getTimeStamp());
+        return rideService.rideArrived(dto.getRideId(), dto.getDriverId());
     }
 
     @PostMapping("/start")
     public String rideStart(@Valid @RequestBody RideStartDto dto) {
-        return rideService.rideStart(dto.getRideId(), dto.getDriverId(), dto.getTimeStamp());
+        return rideService.rideStart(dto.getRideId(), dto.getDriverId());
     }
 }

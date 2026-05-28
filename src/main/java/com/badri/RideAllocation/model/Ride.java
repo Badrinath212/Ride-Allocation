@@ -30,8 +30,10 @@ public class Ride {
     private Integer retryCount;
     private Instant createdAt;
     private Instant updatedAt;
-    private Instant startedAt;
-    private Instant completedAt;
+    private Instant rideStartedAt;
+    private Instant rideCompletedAt;
+    private Instant rideAssignedAt;
+    private Instant driverArrivedAt;
 
     @DynamoDbPartitionKey
     public String getRideId() {

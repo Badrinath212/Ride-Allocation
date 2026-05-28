@@ -128,11 +128,12 @@ public class RideService {
         return null;
     }
 
-    public String rideComplete(String rideId, String finalLat, String finalLng, String timeStamp) {
+    public String rideComplete(String rideId, String finalLat, String finalLng) {
         try {
             // mark the ride as completed
             Ride rideItem = rideTable.getItem(Key.builder().partitionValue(rideId).build());
             rideItem.setStatus("COMPLETED");
+            rideItem.setRideCompletedAt(Instant.now());
             rideTable.updateItem(rideItem);
 
             // need to add the driver to active_drivers
@@ -146,7 +147,7 @@ public class RideService {
         return "Something went wrong";
     }
 
-    public String rideArrived(String rideId, String driverId, String timeStamp) {
+    public String rideArrived(String rideId, String driverId) {
         try {
             Ride rideItem = rideTable.getItem(Key.builder().partitionValue(rideId).build());
 
@@ -155,6 +156,7 @@ public class RideService {
             }
 
             rideItem.setStatus("DRIVER_ARRIVED");
+            rideItem.setDriverArrivedAt(Instant.now());
             rideTable.updateItem(rideItem);
 
             return "Driver arrived!";
@@ -164,7 +166,7 @@ public class RideService {
         return "Something went wrong";
     }
 
-    public String rideStart(String rideId, String driverId, String timeStamp) {
+    public String rideStart(String rideId, String driverId) {
         try {
             Ride rideItem = rideTable.getItem(Key.builder().partitionValue(rideId).build());
 
@@ -173,6 +175,7 @@ public class RideService {
             }
 
             rideItem.setStatus("RIDE_STARTED");
+            rideItem.setRideStartedAt(Instant.now());
             rideTable.updateItem(rideItem);
 
             return "Ride started. Happy journey!";

@@ -13,6 +13,4 @@ public class CompleteRideDto {
     private String finalLat;
     @NotNull
     private String finalLng;
-    @NotNull
-    private String timeStamp;
 }

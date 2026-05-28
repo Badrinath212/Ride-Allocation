@@ -24,6 +24,7 @@ import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.ObjectMapper;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -349,6 +350,7 @@ public class SQSPollingService {
             Ride rideItem1 = rideTable.getItem(Key.builder().partitionValue(rideId).build());
 
             rideItem1.setStatus("DRIVER_ASSIGNED");
+            rideItem1.setRideAssignedAt(Instant.now());
             rideTable.updateItem(rideItem1);
 
             System.out.println("Ride is processed");

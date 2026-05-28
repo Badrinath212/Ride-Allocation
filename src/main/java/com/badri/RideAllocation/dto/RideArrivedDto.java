@@ -11,6 +11,4 @@ public class RideArrivedDto {
     private String rideId;
     @NotNull
     private String driverId;
-    @NotNull
-    private String timeStamp;
 }
