@@ -346,7 +346,7 @@ public class SQSPollingService {
 
             // need to change the state from the accepted to the driver assigned
 
-            Ride rideItem1 = rideTable.getItem(Key.builder().partitionValue(driverId).build());
+            Ride rideItem1 = rideTable.getItem(Key.builder().partitionValue(rideId).build());
 
             rideItem1.setStatus("DRIVER_ASSIGNED");
             rideTable.updateItem(rideItem1);

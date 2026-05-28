@@ -45,7 +45,7 @@ public class RideController {
 
     @PostMapping("/arrived")
     public String driverArrived(@Valid @RequestBody RideArrivedDto dto) {
-        return rideService.rideArrived(dto.getRideId, dto.getDriverId(), dto.getTimeStamp());
+        return rideService.rideArrived(dto.getRideId(), dto.getDriverId(), dto.getTimeStamp());
     }
 
     @PostMapping("/start")
