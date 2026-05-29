@@ -167,7 +167,7 @@ public class SQSPollingService {
 
                     if(!"REQUESTED".equals(ride.getStatus())) {
                         deleteMessage(message.receiptHandle(), rideResponseQueueUrl);
-                        return;
+                        continue;
                     }
 
                     processRideResponse(dto);
@@ -203,7 +203,7 @@ public class SQSPollingService {
 
                     if(!"REQUESTED".equals(rideItem.getStatus())) {
                         deleteMessage(message.receiptHandle(), rideQueueUrl);
-                        return;
+                        continue;
                     }
 
                     processRide(rideQueueEvent);
@@ -349,9 +349,9 @@ public class SQSPollingService {
                         .setIfAbsent("ride:" + rideId + ":lock", driverId, Duration.ofMinutes(5));
 
         if(Boolean.TRUE.equals(acquired)) {
-            rideItem.setStatus(status);
-            rideItem.setDriverId(driverId);
-            rideTable.updateItem(rideItem);
+//            rideItem.setStatus(status);
+//            rideItem.setDriverId(driverId);
+//            rideTable.updateItem(rideItem);
 
             // remove the driver from active drivers
             System.out.println(driverId.getClass().getName());
@@ -366,11 +366,9 @@ public class SQSPollingService {
 
             // need to change the state from the accepted to the driver assigned
 
-            Ride rideItem1 = rideTable.getItem(Key.builder().partitionValue(rideId).build());
-
-            rideItem1.setStatus("DRIVER_ASSIGNED");
-            rideItem1.setRideAssignedAt(Instant.now());
-            rideTable.updateItem(rideItem1);
+            rideItem.setStatus("DRIVER_ASSIGNED");
+            rideItem.setRideAssignedAt(Instant.now());
+            rideTable.updateItem(rideItem);
 
             System.out.println("Ride is processed");
             System.out.println("Ride is assigned to driver: " + driverId);
