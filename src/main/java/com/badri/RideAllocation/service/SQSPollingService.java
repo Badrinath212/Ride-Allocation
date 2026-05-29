@@ -3,6 +3,7 @@ package com.badri.RideAllocation.service;
 import com.badri.RideAllocation.dto.RideResponseDto;
 import com.badri.RideAllocation.model.Ride;
 import com.badri.RideAllocation.vo.DispatchRetryEvent;
+import com.badri.RideAllocation.vo.RideQueueEvent;
 import jakarta.annotation.PostConstruct;
 import org.springframework.data.geo.Distance;
 import org.springframework.data.geo.GeoResult;
@@ -85,6 +86,7 @@ public class SQSPollingService {
                     // check the rideId status
                     Ride rideItem = rideTable.getItem(Key.builder().partitionValue(rideId).build());
 
+
                     if(!"REQUESTED".equals(rideItem.getStatus())) {
                         System.out.println("ride is accepted by the driver");
                         deleteMessage(message.receiptHandle(), dispatchSchedulingQueueUrl);
@@ -161,6 +163,13 @@ public class SQSPollingService {
                     System.out.println(message.body());
                     RideResponseDto dto = objectMapper.readValue(message.body(), RideResponseDto.class);
 
+                    Ride ride = rideTable.getItem(Key.builder().partitionValue(dto.getRideId()).build());
+
+                    if(!"REQUESTED".equals(ride.getStatus())) {
+                        deleteMessage(message.receiptHandle(), rideResponseQueueUrl);
+                        return;
+                    }
+
                     processRideResponse(dto);
 
                     deleteMessage(message.receiptHandle(), rideResponseQueueUrl);
@@ -185,10 +194,19 @@ public class SQSPollingService {
                 try {
                     System.out.println("Message body: " + message.body());
 
-                    Map<String, String> rideData = objectMapper.readValue(message.body(),
-                            new TypeReference<Map<String, String>>(){});
+//                    Map<String, String> rideData = objectMapper.readValue(message.body(),
+//                            new TypeReference<Map<String, String>>(){});
 
-                    processRide(rideData);
+                    RideQueueEvent rideQueueEvent = objectMapper.readValue(message.body(), RideQueueEvent.class);
+
+                    Ride rideItem = rideTable.getItem(Key.builder().partitionValue(rideQueueEvent.getRideId()).build());
+
+                    if(!"REQUESTED".equals(rideItem.getStatus())) {
+                        deleteMessage(message.receiptHandle(), rideQueueUrl);
+                        return;
+                    }
+
+                    processRide(rideQueueEvent);
 
                     deleteMessage(message.receiptHandle(),rideQueueUrl);
                 } catch(Exception e) {
@@ -206,10 +224,10 @@ public class SQSPollingService {
         );
     }
 
-    private String processRide(Map<String, String> rideDate) {
+    private String processRide(RideQueueEvent rideDate) {
 
 
-        String rideId = rideDate.get("rideId");
+        String rideId = rideDate.getRideId();
         // check the idempotency
         Key key = Key.builder()
                 .partitionValue(rideId)
@@ -227,8 +245,8 @@ public class SQSPollingService {
 
         // call the driver service
 
-        Double pickupLat = Double.parseDouble(rideDate.get("pickupLat"));
-        Double pickupLng = Double.parseDouble(rideDate.get("pickupLng"));
+        Double pickupLat = Double.parseDouble(rideDate.getPickupLat());
+        Double pickupLng = Double.parseDouble(rideDate.getPickupLng());
 
         System.out.println("pickupLat :" + pickupLat);
         System.out.println("pickLng :" + pickupLng);
@@ -324,6 +342,7 @@ public class SQSPollingService {
             System.out.println("Ride is rejected by the driver");
             return;
         }
+
         // Distributed lock to the ride if two drivers accept the same ride at same time first driver will win by using this lock
 
         Boolean acquired = redisTemplate.opsForValue()

@@ -52,4 +52,9 @@ public class RideController {
     public String rideStart(@Valid @RequestBody RideStartDto dto) {
         return rideService.rideStart(dto.getRideId(), dto.getDriverId());
     }
+
+    @PostMapping("/cancel")
+    public String rideCancel() {
+
+    }
 }

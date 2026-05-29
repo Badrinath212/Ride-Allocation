@@ -185,4 +185,28 @@ public class RideService {
         }
         return "Something went wrong";
     }
+
+    public String rideCancel(String rideId, String driverId) {
+        try {
+            Ride rideItem = rideTable.getItem(Key.builder().partitionValue(rideId).build());
+
+            if(rideItem.getDriverId() == null) {
+
+                // change the ride status
+                rideItem.setStatus("RIDER_CANCELLED");
+                rideTable.updateItem(rideItem);
+                // if present
+                // remove the ride from ride-queue
+                // remove the ride from dispatch queue
+                // remove the ride from ride response queue(driver response)
+
+
+
+            } else {
+
+            }
+        } catch(Exception e) {
+            System.out.println(e.getMessage());
+        }
+    }
 }
