@@ -37,24 +37,28 @@ public class RideController {
     }
 
     @PostMapping("/complete")
-    public String completeRide(@Valid @RequestBody CompleteRideDto dto) {
+    public ResponseEntity<String> completeRide(@Valid @RequestBody CompleteRideDto dto) {
         System.out.println(dto.toString());
 
-        return rideService.rideComplete(dto.getRideId(), dto.getFinalLat(), dto.getFinalLng());
+        String response = rideService.rideComplete(dto.getRideId(), dto.getFinalLat(), dto.getFinalLng());
+        return ResponseEntity.status(HttpStatus.OK).body(response);
     }
 
     @PostMapping("/arrived")
-    public String driverArrived(@Valid @RequestBody RideArrivedDto dto) {
-        return rideService.rideArrived(dto.getRideId(), dto.getDriverId());
+    public ResponseEntity<String> driverArrived(@Valid @RequestBody RideArrivedDto dto) {
+        String response = rideService.rideArrived(dto.getRideId(), dto.getDriverId());
+        return ResponseEntity.status(HttpStatus.OK).body(response);
     }
 
     @PostMapping("/start")
-    public String rideStart(@Valid @RequestBody RideStartDto dto) {
-        return rideService.rideStart(dto.getRideId(), dto.getDriverId());
+    public ResponseEntity<String> rideStart(@Valid @RequestBody RideStartDto dto) {
+        String response = rideService.rideStart(dto.getRideId(), dto.getDriverId());
+        return ResponseEntity.status(HttpStatus.OK).body(response);
     }
 
-    @PostMapping("/cancel")
-    public String rideCancel() {
-
+    @PostMapping("/cancel/rider")
+    public ResponseEntity<String> rideCancelByRider(@Valid @RequestBody CancelRideDto dto) {
+        String response = rideService.rideCancelByRider(dto.getRideId(), dto.getDriverId());
+        return ResponseEntity.status(HttpStatus.OK).body(response);
     }
 }

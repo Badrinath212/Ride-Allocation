@@ -4,6 +4,8 @@ import com.badri.RideAllocation.dto.BookRideResponseDto;
 import com.badri.RideAllocation.dto.EstFareResponseDto;
 import com.badri.RideAllocation.model.Ride;
 import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbEnhancedClient;
@@ -29,16 +31,21 @@ public class RideService {
     private final SqsClient sqsClient;
     private final ObjectMapper objectMapper;
     private final DriverService driverService;
+    private final SimpMessagingTemplate messagingTemplate;
+    private final StringRedisTemplate redisTemplate;
 
     public RideService(WebClient webClient, DynamoDbEnhancedClient ddcEnhanced,
                        DynamoDbTable<Ride> rideTable, SqsClient sqsClient,
-                       ObjectMapper objectMapper, DriverService driverService) {
+                       ObjectMapper objectMapper, DriverService driverService,
+                       SimpMessagingTemplate messagingTemplate, StringRedisTemplate redisTemplate) {
         this.webClient = webClient;
         this.ddcEnhanced = ddcEnhanced;
         this.rideTable = rideTable;
         this.sqsClient = sqsClient;
         this.objectMapper = objectMapper;
         this.driverService = driverService;
+        this.messagingTemplate = messagingTemplate;
+        this.redisTemplate = redisTemplate;
     }
 
     public EstFareResponseDto getEstFare(String pickupLat,String pickupLng, String dropLat, String dropLng, String profile) {
@@ -186,27 +193,52 @@ public class RideService {
         return "Something went wrong";
     }
 
-    public String rideCancel(String rideId, String driverId) {
+    public String rideCancelByRider(String rideId, String driverId) {
         try {
             Ride rideItem = rideTable.getItem(Key.builder().partitionValue(rideId).build());
 
-            if(rideItem.getDriverId() == null) {
+            if("COMPLETED".equals(rideItem.getStatus())) {
+                return "Ride is already completed";
+            }
+            // change the ride status
+            rideItem.setStatus("RIDER_CANCELLED");
+            rideTable.updateItem(rideItem);
 
-                // change the ride status
-                rideItem.setStatus("RIDER_CANCELLED");
-                rideTable.updateItem(rideItem);
+            if(rideItem.getDriverId() != null) {
                 // if present
                 // remove the ride from ride-queue
                 // remove the ride from dispatch queue
                 // remove the ride from ride response queue(driver response)
+                // above cases handled by the polling service
 
+                // for fetching the driver lng & lat it calls the api from driver service to the driver device
+                String lng = "12.77";
+                String lat = "77.88";
 
+                // validate the driver
+                if(!rideItem.getDriverId().equals(driverId)) {
+                    return "Invalid Driver";
+                }
 
-            } else {
+                // add the driver back to active users
+                driverService.addDriverToActiveDrivers(driverId, lng, lat, "active_drivers");
+
+                // ride lock automatically remove after five minutes
+                redisTemplate.delete("ride:" + rideId + ":lock");
+
+                // notify the driver as ride cancelled
+                messagingTemplate.convertAndSend(
+                        "/topic/driver/" + driverId,
+                        "Ride is cancelled by rider"
+                );
 
             }
+
+            return "Ride is cancelled";
+
         } catch(Exception e) {
             System.out.println(e.getMessage());
         }
+        return null;
     }
 }
