@@ -368,6 +368,7 @@ public class SQSPollingService {
 
             rideItem.setStatus("DRIVER_ASSIGNED");
             rideItem.setRideAssignedAt(Instant.now());
+            rideItem.setDriverId(driverId);
             rideTable.updateItem(rideItem);
 
             System.out.println("Ride is processed");

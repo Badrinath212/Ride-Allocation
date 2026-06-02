@@ -3,6 +3,7 @@ package com.badri.RideAllocation.service;
 import com.badri.RideAllocation.dto.BookRideResponseDto;
 import com.badri.RideAllocation.dto.EstFareResponseDto;
 import com.badri.RideAllocation.model.Ride;
+import com.badri.RideAllocation.vo.RideQueueEvent;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -33,6 +34,7 @@ public class RideService {
     private final DriverService driverService;
     private final SimpMessagingTemplate messagingTemplate;
     private final StringRedisTemplate redisTemplate;
+    private final String queueUrl = "http://sqs.ap-south-1.localhost.localstack.cloud:4566/000000000000/ride-queue";
 
     public RideService(WebClient webClient, DynamoDbEnhancedClient ddcEnhanced,
                        DynamoDbTable<Ride> rideTable, SqsClient sqsClient,
@@ -116,7 +118,6 @@ public class RideService {
 
             String jsonBody = objectMapper.writeValueAsString(map);
 
-            String queueUrl = "http://sqs.ap-south-1.localhost.localstack.cloud:4566/000000000000/ride-queue";
             SendMessageRequest sendMessageRequest = SendMessageRequest.builder()
                     .messageBody(jsonBody)
                     .queueUrl(queueUrl)
@@ -200,6 +201,11 @@ public class RideService {
             if("COMPLETED".equals(rideItem.getStatus())) {
                 return "Ride is already completed";
             }
+
+            if("RIDE_STARTED".equals(rideItem.getStatus())) {
+                return "Ride is already started. Not able to cancel";
+            }
+
             // change the ride status
             rideItem.setStatus("RIDER_CANCELLED");
             rideTable.updateItem(rideItem);
@@ -240,5 +246,63 @@ public class RideService {
             System.out.println(e.getMessage());
         }
         return null;
+    }
+
+    public String rideCancelByDriver(String rideId, String driverId) {
+        try {
+            Ride rideItem = rideTable.getItem(Key.builder().partitionValue(rideId).build());
+
+            // ride check
+            if(rideItem == null) return "Ride not found";
+
+            // verify the driver
+            if(!driverId.equals(rideItem.getDriverId())) {
+                return "Invalid Driver";
+            }
+
+            if("RIDE_STARTED".equals(rideItem.getStatus())) {
+                return "Ride is already started. Not able to cancel";
+            }
+
+            if("COMPLETED".equals(rideItem.getStatus())) {
+                return "Ride is already completed";
+            }
+
+            // update the ride as driver cancelled
+            rideItem.setStatus("REQUESTED");
+            rideItem.setDriverId(null);
+            rideTable.updateItem(rideItem);
+
+            //intimate the rider
+            messagingTemplate.convertAndSend(
+                    "/topic/rider/" + rideItem.getUserId(),
+                    "Ride cancelled by driver."
+            );
+
+            // remove the ride lock
+            redisTemplate.delete("ride:" + rideId + ":lock");
+
+            //add the driver to active drivers
+            String lng = "12.11";
+            String lat = "74.11";
+            driverService.addDriverToActiveDrivers(driverId, lng, lat, "active_drivers");
+
+            // need add it back to ride-queue
+            RideQueueEvent event = new RideQueueEvent(rideItem.getRideId(), "REQUESTED", rideItem.getPickupLat(), rideItem.getPickupLng(), String.valueOf(rideItem.getEstimatedFare()));
+
+            String jsonEvent = objectMapper.writeValueAsString(event);
+            SendMessageRequest sendMessageRequest = SendMessageRequest.builder()
+                                                                .queueUrl(queueUrl)
+                                                                .messageBody(jsonEvent)
+                                                                .build();
+            sqsClient.sendMessage(sendMessageRequest);
+
+            System.out.println("Message sent back to ride queue");
+
+            return "Ride cancelled successfully!";
+        } catch(Exception e) {
+            System.out.println(e.getMessage());
+        }
+        return "Something went wrong";
     }
 }
