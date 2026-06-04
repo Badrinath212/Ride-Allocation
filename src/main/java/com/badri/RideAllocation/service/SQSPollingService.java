@@ -226,46 +226,46 @@ public class SQSPollingService {
 
     private String processRide(RideQueueEvent rideDate) {
 
+        try {
 
-        String rideId = rideDate.getRideId();
-        // check the idempotency
-        Key key = Key.builder()
-                .partitionValue(rideId)
-                .build();
-        Ride rideItem = rideTable.getItem(key);
-
-
-
-        if(!"REQUESTED".equals(rideItem.getStatus())) {
-            System.out.println("Driver is already assigned");
-            return "Driver is already assigned";
-        }
-
-        // { rideId, pickUplat, pickupLng, estimatedFare }  redis member in active_drivers
-
-        // call the driver service
-
-        Double pickupLat = Double.parseDouble(rideDate.getPickupLat());
-        Double pickupLng = Double.parseDouble(rideDate.getPickupLng());
-
-        System.out.println("pickupLat :" + pickupLat);
-        System.out.println("pickLng :" + pickupLng);
+            String rideId = rideDate.getRideId();
+            // check the idempotency
+            Key key = Key.builder()
+                    .partitionValue(rideId)
+                    .build();
+            Ride rideItem = rideTable.getItem(key);
 
 
-        List<GeoResult<RedisGeoCommands.GeoLocation<String>>> results = driverService.getNearestNDrivers(pickupLat, pickupLng);
+            if (!"REQUESTED".equals(rideItem.getStatus())) {
+                System.out.println("Driver is already assigned");
+                return "Driver is already assigned";
+            }
 
-        List<String> drivers = new ArrayList<>();
+            // { rideId, pickUplat, pickupLng, estimatedFare }  redis member in active_drivers
 
-        for(GeoResult<RedisGeoCommands.GeoLocation<String>> result: results) {
-            String driverId = result.getContent().getName();
-            drivers.add(driverId);
-        }
+            // call the driver service
 
-        String redisKey = "ride:" + rideId + ":candidates";
+            Double pickupLat = Double.parseDouble(rideDate.getPickupLat());
+            Double pickupLng = Double.parseDouble(rideDate.getPickupLng());
 
-        System.out.println("Drivers: " + drivers);
+            System.out.println("pickupLat :" + pickupLat);
+            System.out.println("pickLng :" + pickupLng);
 
-        driverService.storeCandidateDrivers(drivers, redisKey);
+
+            List<GeoResult<RedisGeoCommands.GeoLocation<String>>> results = driverService.getNearestNDrivers(pickupLat, pickupLng);
+
+            List<String> drivers = new ArrayList<>();
+
+            for (GeoResult<RedisGeoCommands.GeoLocation<String>> result : results) {
+                String driverId = result.getContent().getName();
+                drivers.add(driverId);
+            }
+
+            String redisKey = "ride:" + rideId + ":candidates";
+
+            System.out.println("Drivers: " + drivers);
+
+            driverService.storeCandidateDrivers(drivers, redisKey);
 
 //        int batchSize = 5;
 //        int totalDrivers = 50;
@@ -284,104 +284,112 @@ public class SQSPollingService {
 //            }
 //        }
 
-        // initial notify for 5 drivers
-        List<String> driverBatch = driverService.fetchCandidateDrivers(0, 4, redisKey);
+            // initial notify for 5 drivers
+            List<String> driverBatch = driverService.fetchCandidateDrivers(0, 4, redisKey);
 
-        for(String driverId: driverBatch) {
-            messagingTemplate.convertAndSend(
-                    "/topic/driver/" + driverId,
-                    rideDate
-            );
+            for (String driverId : driverBatch) {
+                messagingTemplate.convertAndSend(
+                        "/topic/driver/" + driverId,
+                        rideDate
+                );
 
-            System.out.println("Request sent");
+                System.out.println("Request sent");
+            }
+
+            DispatchRetryEvent event = new DispatchRetryEvent(rideId, 5);
+
+            String jsonBody = objectMapper.writeValueAsString(event);
+
+            SendMessageRequest sendMessageRequest = SendMessageRequest.builder()
+                    .queueUrl(dispatchSchedulingQueueUrl)
+                    .messageBody(jsonBody)
+                    .delaySeconds(10)
+                    .build();
+
+            sqsClient.sendMessage(sendMessageRequest);
+
+            System.out.println("initial dispatch event sent to queue");
+        } catch (Exception e) {
+            System.out.println(e.getMessage());
         }
-
-        DispatchRetryEvent event = new DispatchRetryEvent(rideId, 5);
-
-        String jsonBody = objectMapper.writeValueAsString(event);
-
-        SendMessageRequest sendMessageRequest = SendMessageRequest.builder()
-                .queueUrl(dispatchSchedulingQueueUrl)
-                .messageBody(jsonBody)
-                .delaySeconds(10)
-                .build();
-
-        sqsClient.sendMessage(sendMessageRequest);
-
-        System.out.println("initial dispatch event sent to queue");
-
-
         return "SQS Polling";
     }
 
     public void processRideResponse(RideResponseDto dto) {
 
-        System.out.println("process Ride Response method called");
-        String rideId = dto.getRideId();
-        String driverId = dto.getDriverId();
-        String status = dto.getStatus();
+        try {
+            System.out.println("process Ride Response method called");
+            String rideId = dto.getRideId();
+            String driverId = dto.getDriverId();
+            String status = dto.getStatus();
 
-        System.out.println("process ride body: " + dto.toString());
+            System.out.println("process ride body: " + dto.toString());
 
-        System.out.println(rideId);
-        System.out.println(driverId);
-        System.out.println(status);
+            System.out.println(rideId);
+            System.out.println(driverId);
+            System.out.println(status);
 
-        Ride rideItem = rideTable.getItem(Key.builder().partitionValue(rideId).build());
+            Ride rideItem = rideTable.getItem(Key.builder().partitionValue(rideId).build());
 
-        System.out.println(rideItem.toString());
+            System.out.println(rideItem.toString());
 
 //        if("ACCEPTED".equals(rideItem.getStatus())) {
 //            System.out.println("Ride is accepted by other driver");
 //            return;
 //        }
 
-        // Driver rejects the ride & N drivers rejects need to query next N drivers
+            // Driver rejects the ride & N drivers rejects need to query next N drivers
 
-        if(status.equals("REJECTED")) {
-            System.out.println("Ride is rejected by the driver");
-            return;
-        }
+            if (status.equals("REJECTED")) {
+                System.out.println("Ride is rejected by the driver");
+                return;
+            }
 
-        // Distributed lock to the ride if two drivers accept the same ride at same time first driver will win by using this lock
+            // Distributed lock to the ride if two drivers accept the same ride at same time first driver will win by using this lock
 
-        Boolean acquired = redisTemplate.opsForValue()
-                        .setIfAbsent("ride:" + rideId + ":lock", driverId, Duration.ofMinutes(5));
+            System.out.println("Before redis lock operations");
+            Boolean acquired = redisTemplate.opsForValue()
+                    .setIfAbsent("ride:" + rideId + ":lock", driverId, Duration.ofMinutes(5));
+            System.out.println("After redis lock operations");
 
-        if(Boolean.TRUE.equals(acquired)) {
+            if (Boolean.TRUE.equals(acquired)) {
 //            rideItem.setStatus(status);
 //            rideItem.setDriverId(driverId);
 //            rideTable.updateItem(rideItem);
 
-            // remove the driver from active drivers
-            System.out.println(driverId.getClass().getName());
-            driverService.removeDriverFromActiveDrivers(driverId, "active_drivers");
+                // remove the driver from active drivers
+                System.out.println("Before remove driver from active drivers");
+                driverService.removeDriverFromActiveDrivers(driverId, "active_drivers");
+                System.out.println("Before remove driver from active drivers");
 
-            String userId = rideItem.getUserId();
+                String userId = rideItem.getUserId();
 
-            messagingTemplate.convertAndSend(
-                    "/topic/rider/" + userId,
-                    "Captain is on the way!"
-            );
+                messagingTemplate.convertAndSend(
+                        "/topic/rider/" + userId,
+                        "Captain is on the way!"
+                );
 
-            // need to change the state from the accepted to the driver assigned
+                // need to change the state from the accepted to the driver assigned
 
-            rideItem.setStatus("DRIVER_ASSIGNED");
-            rideItem.setRideAssignedAt(Instant.now());
-            rideItem.setDriverId(driverId);
-            rideTable.updateItem(rideItem);
+                rideItem.setStatus("DRIVER_ASSIGNED");
+                rideItem.setRideAssignedAt(Instant.now());
+                rideItem.setDriverId(driverId);
+                rideTable.updateItem(rideItem);
 
-            System.out.println("Ride is processed");
-            System.out.println("Ride is assigned to driver: " + driverId);
-        } else {
-            System.out.println("ride is already assigned to other driver");
+                System.out.println("Ride is processed");
+                System.out.println("Ride is assigned to driver: " + driverId);
+            } else {
+                System.out.println("ride is already assigned to other driver");
 
-            System.out.println("/topic/driver/"+driverId);
+                System.out.println("/topic/driver/" + driverId);
 
-            messagingTemplate.convertAndSend(
-                    "/topic/driver/" + driverId,
-                    "Ride is already assigned to other driver"
-            );
+                messagingTemplate.convertAndSend(
+                        "/topic/driver/" + driverId,
+                        "Ride is already assigned to other driver"
+                );
+            }
+        } catch (Exception e) {
+            System.out.println(e.getMessage());
         }
     }
 }
