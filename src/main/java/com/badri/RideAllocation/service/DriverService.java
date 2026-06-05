@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.Set;
 import java.util.function.DoubleToIntFunction;
 
 @Service
@@ -38,12 +39,30 @@ public class DriverService {
         }
         return null;
     }
-    public void storeCandidateDrivers(List<String> drivers, String redisKey) {
+    public void storeCandidateDrivers(List<String> drivers, String redisKey, String rideId) {
+
+        Set<String> rejectedDrivers = fetchRideRejectedDrivers(rideId);
+        if(rejectedDrivers == null || rejectedDrivers.isEmpty()) {
+            System.out.println("Rejected drivers are not available for this ride");
+        } else {
+            drivers.removeAll(rejectedDrivers);
+        }
 
         redisTemplate.opsForList().rightPushAll(redisKey, drivers);
         redisTemplate.expire(redisKey, Duration.ofMinutes(5));
 
         System.out.println("candidate drivers data pushed");
+    }
+
+    public Set<String> fetchRideRejectedDrivers(String rideId) {
+        try {
+            String redisKey = "ride:" + rideId + ":rejectedDrivers";
+
+            return redisTemplate.opsForSet().members(redisKey);
+        } catch (Exception e) {
+            System.out.println(e.getMessage());
+        }
+        return null;
     }
 
     public List<String> fetchCandidateDrivers(int start,int end, String redisKey) {

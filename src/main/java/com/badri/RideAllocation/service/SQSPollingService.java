@@ -265,7 +265,7 @@ public class SQSPollingService {
 
             System.out.println("Drivers: " + drivers);
 
-            driverService.storeCandidateDrivers(drivers, redisKey);
+            driverService.storeCandidateDrivers(drivers, redisKey, rideId);
 
 //        int batchSize = 5;
 //        int totalDrivers = 50;

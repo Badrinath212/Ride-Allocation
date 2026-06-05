@@ -17,6 +17,7 @@ import software.amazon.awssdk.services.sqs.SqsClient;
 import software.amazon.awssdk.services.sqs.model.SendMessageRequest;
 import tools.jackson.databind.ObjectMapper;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
@@ -286,6 +287,11 @@ public class RideService {
             String lng = "12.11";
             String lat = "74.11";
             driverService.addDriverToActiveDrivers(driverId, lng, lat, "active_drivers");
+
+            // need to exclude from the ride
+            String redisKey = "ride:" + rideId + ":rejectedDrivers";
+            redisTemplate.opsForSet().add(redisKey, driverId);
+            redisTemplate.expire(redisKey, Duration.ofHours(1));
 
             // need add it back to ride-queue
             RideQueueEvent event = new RideQueueEvent(rideItem.getRideId(), "REQUESTED", rideItem.getPickupLat(), rideItem.getPickupLng(), String.valueOf(rideItem.getEstimatedFare()));
