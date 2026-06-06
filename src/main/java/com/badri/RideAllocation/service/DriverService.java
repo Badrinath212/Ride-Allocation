@@ -45,11 +45,14 @@ public class DriverService {
         if(rejectedDrivers == null || rejectedDrivers.isEmpty()) {
             System.out.println("Rejected drivers are not available for this ride");
         } else {
+            System.out.println("Rejected Drivers: " + rejectedDrivers);
             drivers.removeAll(rejectedDrivers);
         }
 
         redisTemplate.opsForList().rightPushAll(redisKey, drivers);
         redisTemplate.expire(redisKey, Duration.ofMinutes(5));
+        Long size = redisTemplate.opsForList().size(redisKey);
+        System.out.println("Candidate list size = " + size);
 
         System.out.println("candidate drivers data pushed");
     }

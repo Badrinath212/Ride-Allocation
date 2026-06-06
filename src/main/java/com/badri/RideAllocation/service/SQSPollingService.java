@@ -91,19 +91,20 @@ public class SQSPollingService {
                         System.out.println("ride is accepted by the driver");
                         deleteMessage(message.receiptHandle(), dispatchSchedulingQueueUrl);
                     } else {
-                        if(startIndex >= 50) {
+                        String redisKey = "ride:" + rideId + ":candidates";
+                        List<String> driverBatch = driverService.fetchCandidateDrivers(startIndex,startIndex+4, redisKey);
+                        if(startIndex >= 50 || driverBatch.isEmpty()) {
                             deleteMessage(message.receiptHandle(), dispatchSchedulingQueueUrl);
+                            messagingTemplate.convertAndSend(
+                                    "/topic/rider/" + rideItem.getUserId(),
+                                    "No drivers are available for your ride");
+                            System.out.println("No drivers are there for your ride");
                         } else {
 
-                            String redisKey = "ride:" + rideId + ":candidates";
+                            System.out.println("Received scheduling event");
+                            System.out.println("startIndex = " + startIndex);
 
-                            List<String> driverBatch = driverService.fetchCandidateDrivers(startIndex,startIndex+4, redisKey);
-
-                            if(driverBatch.isEmpty()) {
-                                deleteMessage(message.receiptHandle(), dispatchSchedulingQueueUrl);
-                                System.out.println("No drivers are there for your ride");
-                                continue;
-                            }
+                            System.out.println("driverBatch = " + driverBatch);
 
                             Map<String, String> rideData = new HashMap<>();
 
@@ -113,6 +114,7 @@ public class SQSPollingService {
                             rideData.put("estimatedFare", String.valueOf(rideItem.getEstimatedFare()));
 
                             for(String driverId: driverBatch) {
+                                System.out.println("Notification is sent to: " + driverId);
                                 messagingTemplate.convertAndSend(
                                         "/topic/driver/" + driverId,
                                         rideData
