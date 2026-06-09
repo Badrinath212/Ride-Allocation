@@ -8,6 +8,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.socket.messaging.SessionDisconnectEvent;
 import org.springframework.web.socket.messaging.SessionSubscribeEvent;
 
+import java.time.Instant;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -32,7 +33,9 @@ public class WebSocketEventListener {
             System.out.println("sessionId: " + accessor.getSessionId() + " driverId: " + driverId );
 
             if(driverId != null) {
-                presenceService.markDriverOnline(String.valueOf(driverId));
+                String status = "ONLINE";
+                String lastSeen = String.valueOf(Instant.now().toEpochMilli());
+                presenceService.updateDriverPresence(String.valueOf(driverId), status, lastSeen);
             }
         }
     }
@@ -45,7 +48,9 @@ public class WebSocketEventListener {
         System.out.println("Disconnected Driver: " + driverId);
 
         if(driverId != null) {
-            presenceService.markDriverOffline(String.valueOf(driverId));
+            String status = "OFFLINE";
+            String lastSeen = String.valueOf(Instant.now().toEpochMilli());
+            presenceService.updateDriverPresence(String.valueOf(driverId), status, lastSeen);
         }
     }
 }

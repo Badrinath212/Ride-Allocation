@@ -11,10 +11,14 @@ public class PresenceService {
         this.redisTemplate = redisTemplate;
     }
 
-    public void markDriverOnline(String driverId) {
-        redisTemplate.opsForValue().set("driver:" + driverId, "ONLINE");
+    public void updateDriverPresence(String driverId, String status, String lastSeen) {
+        String redisKey = "driver:presence:" + driverId;
+        redisTemplate.opsForHash().put(redisKey, "status", status);
+        redisTemplate.opsForHash().put(redisKey, "lastSeen", lastSeen);
     }
-    public void markDriverOffline(String driverId) {
-        redisTemplate.delete("driver:" + driverId);
+
+    public void updateDriverHeartbeat(String driverId, String lastSeen) {
+        String redisKey = "driver:presence:" + driverId;
+        redisTemplate.opsForHash().put(redisKey, "lastSeen", lastSeen);
     }
 }

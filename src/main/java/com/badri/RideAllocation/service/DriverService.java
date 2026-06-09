@@ -17,9 +17,11 @@ import java.util.function.DoubleToIntFunction;
 public class DriverService {
 
     private final StringRedisTemplate redisTemplate;
+    private final PresenceService presenceService;
 
-    public DriverService(StringRedisTemplate redisTemplate) {
+    public DriverService(StringRedisTemplate redisTemplate, PresenceService presenceService) {
         this.redisTemplate = redisTemplate;
+        this.presenceService = presenceService;
     }
     public List<GeoResult<RedisGeoCommands.GeoLocation<String>>> getNearestNDrivers(Double pickupLat, Double pickupLng) {
         try {
@@ -101,5 +103,13 @@ public class DriverService {
         }
     }
 
+    public void updateDriverHeartbeat(String driverId, String heartbeatTime) {
+        try {
+            presenceService.updateDriverHeartbeat(driverId, heartbeatTime);
+
+        } catch(Exception e) {
+            System.out.println(e.getMessage());
+        }
+    }
 
 }
