@@ -112,4 +112,12 @@ public class DriverService {
         }
     }
 
+    public void updateDriverLocation(String driverId, String lng, String lat, String lastSeen) {
+        try {
+            presenceService.updateDriverLocation(driverId, lng, lat, lastSeen);
+        } catch(Exception e) {
+            System.out.println(e.getMessage());
+        }
+    }
+
 }

@@ -42,11 +42,12 @@ public class SQSPollingService {
     private final String rideResponseQueueUrl = "http://sqs.ap-south-1.localhost.localstack.cloud:4566/000000000000/ride-process";
     private final String dispatchSchedulingQueueUrl = "http://sqs.ap-south-1.localhost.localstack.cloud:4566/000000000000/dispatch-scheduling-queue";
     private final StringRedisTemplate redisTemplate;
+    private final PresenceService presenceService;
 
     public SQSPollingService(SqsClient sqsClient,
                              DynamoDbTable<Ride> rideTable, DriverService driverService,
                              ObjectMapper objectMapper, SimpMessagingTemplate messagingTemplate,
-                             StringRedisTemplate redisTemplate) {
+                             StringRedisTemplate redisTemplate, PresenceService presenceService) {
         System.out.println("constructor called");
         this.sqsClient = sqsClient;
         this.rideTable = rideTable;
@@ -54,6 +55,7 @@ public class SQSPollingService {
         this.objectMapper = objectMapper;
         this.messagingTemplate = messagingTemplate;
         this.redisTemplate = redisTemplate;
+        this.presenceService = presenceService;
     }
 
     @PostConstruct
@@ -115,10 +117,13 @@ public class SQSPollingService {
 
                             for(String driverId: driverBatch) {
                                 System.out.println("Notification is sent to: " + driverId);
-                                messagingTemplate.convertAndSend(
-                                        "/topic/driver/" + driverId,
-                                        rideData
-                                );
+
+                                if(presenceService.isOnline(driverId)) {
+                                    messagingTemplate.convertAndSend(
+                                            "/topic/driver/" + driverId,
+                                            rideData
+                                    );
+                                }
                             }
 
                             deleteMessage(message.receiptHandle(), dispatchSchedulingQueueUrl);
@@ -290,6 +295,7 @@ public class SQSPollingService {
             List<String> driverBatch = driverService.fetchCandidateDrivers(0, 4, redisKey);
 
             for (String driverId : driverBatch) {
+                if()
                 messagingTemplate.convertAndSend(
                         "/topic/driver/" + driverId,
                         rideDate

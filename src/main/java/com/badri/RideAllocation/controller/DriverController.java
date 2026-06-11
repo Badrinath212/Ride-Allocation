@@ -1,7 +1,9 @@
 package com.badri.RideAllocation.controller;
 
+import com.badri.RideAllocation.dto.LocationUpdateDto;
 import com.badri.RideAllocation.service.DriverService;
 import com.badri.RideAllocation.service.PresenceService;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -34,5 +36,17 @@ public class DriverController {
         driverService.updateDriverHeartbeat(driverId, heartbeatTime);
 
         return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
+    }
+
+    @PostMapping("/location")
+    public String driverLocation(@Valid @RequestBody LocationUpdateDto dto) {
+        String driverId = dto.getDriverId();
+        String lng = dto.getLng();
+        String lat = dto.getLat();
+        String lastSeen = String.valueOf(Instant.now().toEpochMilli());
+
+        driverService.updateDriverLocation(driverId, lng, lat, lastSeen);
+
+        return " ";
     }
 }
