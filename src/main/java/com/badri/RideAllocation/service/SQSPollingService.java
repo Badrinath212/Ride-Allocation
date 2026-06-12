@@ -43,11 +43,13 @@ public class SQSPollingService {
     private final String dispatchSchedulingQueueUrl = "http://sqs.ap-south-1.localhost.localstack.cloud:4566/000000000000/dispatch-scheduling-queue";
     private final StringRedisTemplate redisTemplate;
     private final PresenceService presenceService;
+    private final NotificationService notificationService;
 
     public SQSPollingService(SqsClient sqsClient,
                              DynamoDbTable<Ride> rideTable, DriverService driverService,
                              ObjectMapper objectMapper, SimpMessagingTemplate messagingTemplate,
-                             StringRedisTemplate redisTemplate, PresenceService presenceService) {
+                             StringRedisTemplate redisTemplate, PresenceService presenceService,
+                             NotificationService notificationService) {
         System.out.println("constructor called");
         this.sqsClient = sqsClient;
         this.rideTable = rideTable;
@@ -56,6 +58,7 @@ public class SQSPollingService {
         this.messagingTemplate = messagingTemplate;
         this.redisTemplate = redisTemplate;
         this.presenceService = presenceService;
+        this.notificationService = notificationService;
     }
 
     @PostConstruct
@@ -97,9 +100,10 @@ public class SQSPollingService {
                         List<String> driverBatch = driverService.fetchCandidateDrivers(startIndex,startIndex+4, redisKey);
                         if(startIndex >= 50 || driverBatch.isEmpty()) {
                             deleteMessage(message.receiptHandle(), dispatchSchedulingQueueUrl);
-                            messagingTemplate.convertAndSend(
-                                    "/topic/rider/" + rideItem.getUserId(),
-                                    "No drivers are available for your ride");
+                            String userId = rideItem.getUserId();
+                            String msg = "No drivers are available for your ride";
+
+                            notificationService.notifyRider(userId, msg);
                             System.out.println("No drivers are there for your ride");
                         } else {
 
@@ -108,19 +112,16 @@ public class SQSPollingService {
 
                             System.out.println("driverBatch = " + driverBatch);
 
-                            Map<String, String> rideData = new HashMap<>();
+                            RideQueueEvent rideData = new RideQueueEvent(rideId, rideItem.getStatus(), rideItem.getPickupLat(), rideItem.getPickupLng(), String.valueOf(rideItem.getEstimatedFare()));
 
-                            rideData.put("rideId", rideId);
-                            rideData.put("pickupLng", rideItem.getPickupLng());
-                            rideData.put("pickupLat", rideItem.getPickupLat());
-                            rideData.put("estimatedFare", String.valueOf(rideItem.getEstimatedFare()));
+//                            rideData.put("rideId", rideId);
+//                            rideData.put("pickupLng", rideItem.getPickupLng());
+//                            rideData.put("pickupLat", rideItem.getPickupLat());
+//                            rideData.put("estimatedFare", String.valueOf(rideItem.getEstimatedFare()));
 
                             for(String driverId: driverBatch) {
                                 if(presenceService.isOnline(driverId)) {
-                                    messagingTemplate.convertAndSend(
-                                            "/topic/driver/" + driverId,
-                                            rideData
-                                    );
+                                    notificationService.notifyRideRequestToDriverThroughWebSocket(driverId, rideData);
                                     System.out.println("Notification is sent to: " + driverId);
                                 }
                             }
@@ -171,10 +172,10 @@ public class SQSPollingService {
 
                     Ride ride = rideTable.getItem(Key.builder().partitionValue(dto.getRideId()).build());
 
-                    if(!"REQUESTED".equals(ride.getStatus())) {
-                        deleteMessage(message.receiptHandle(), rideResponseQueueUrl);
-                        continue;
-                    }
+//                    if(!"REQUESTED".equals(ride.getStatus())) {
+//                        deleteMessage(message.receiptHandle(), rideResponseQueueUrl);
+//                        continue;
+//                    }
 
                     processRideResponse(dto);
 
@@ -273,32 +274,12 @@ public class SQSPollingService {
 
             driverService.storeCandidateDrivers(drivers, redisKey, rideId);
 
-//        int batchSize = 5;
-//        int totalDrivers = 50;
-//        // notify top N drivers
-//        for(int start=0;start<totalDrivers;start+=batchSize){
-//            int end = Math.min(totalDrivers-1, start+batchSize-1);
-//            List<String> driverBatch = driverService.fetchCandidateDrivers(start, end, redisKey);
-//
-//            for(String driverId: driverBatch) {
-//                messagingTemplate.convertAndSend(
-//                        "/topic/driver/" + driverId,
-//                        rideDate
-//                );
-//
-//                System.out.println("Request sent");
-//            }
-//        }
-
             // initial notify for 5 drivers
             List<String> driverBatch = driverService.fetchCandidateDrivers(0, 4, redisKey);
 
             for (String driverId : driverBatch) {
                 if(presenceService.isOnline(driverId)) {
-                    messagingTemplate.convertAndSend(
-                            "/topic/driver/" + driverId,
-                            rideDate
-                    );
+                    notificationService.notifyRideRequestToDriverThroughWebSocket(driverId, rideDate);
                     System.out.println("Request sent");
                 }
             }
@@ -347,6 +328,8 @@ public class SQSPollingService {
 
             // Driver rejects the ride & N drivers rejects need to query next N drivers
 
+            System.out.println("driverId: " + driverId);
+
             if (status.equals("REJECTED")) {
                 System.out.println("Ride is rejected by the driver");
                 return;
@@ -370,12 +353,9 @@ public class SQSPollingService {
                 System.out.println("Before remove driver from active drivers");
 
                 String userId = rideItem.getUserId();
+                String msg = "Captain is on the way!";
 
-                messagingTemplate.convertAndSend(
-                        "/topic/rider/" + userId,
-                        "Captain is on the way!"
-                );
-
+                notificationService.notifyRider(userId, msg);
                 // need to change the state from the accepted to the driver assigned
 
                 rideItem.setStatus("DRIVER_ASSIGNED");
@@ -387,13 +367,12 @@ public class SQSPollingService {
                 System.out.println("Ride is assigned to driver: " + driverId);
             } else {
                 System.out.println("ride is already assigned to other driver");
-
                 System.out.println("/topic/driver/" + driverId);
 
-                messagingTemplate.convertAndSend(
-                        "/topic/driver/" + driverId,
-                        "Ride is already assigned to other driver"
-                );
+                String msg = "Ride is already assigned to other driver";
+
+                notificationService.notifyDriver(driverId, msg);
+
             }
         } catch (Exception e) {
             System.out.println(e.getMessage());

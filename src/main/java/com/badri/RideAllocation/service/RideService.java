@@ -36,11 +36,13 @@ public class RideService {
     private final SimpMessagingTemplate messagingTemplate;
     private final StringRedisTemplate redisTemplate;
     private final String queueUrl = "http://sqs.ap-south-1.localhost.localstack.cloud:4566/000000000000/ride-queue";
+    private final NotificationService notificationService;
 
     public RideService(WebClient webClient, DynamoDbEnhancedClient ddcEnhanced,
                        DynamoDbTable<Ride> rideTable, SqsClient sqsClient,
                        ObjectMapper objectMapper, DriverService driverService,
-                       SimpMessagingTemplate messagingTemplate, StringRedisTemplate redisTemplate) {
+                       SimpMessagingTemplate messagingTemplate, StringRedisTemplate redisTemplate,
+                       NotificationService notificationService) {
         this.webClient = webClient;
         this.ddcEnhanced = ddcEnhanced;
         this.rideTable = rideTable;
@@ -49,6 +51,7 @@ public class RideService {
         this.driverService = driverService;
         this.messagingTemplate = messagingTemplate;
         this.redisTemplate = redisTemplate;
+        this.notificationService = notificationService;
     }
 
     public EstFareResponseDto getEstFare(String pickupLat,String pickupLng, String dropLat, String dropLng, String profile) {
@@ -234,10 +237,8 @@ public class RideService {
                 redisTemplate.delete("ride:" + rideId + ":lock");
 
                 // notify the driver as ride cancelled
-                messagingTemplate.convertAndSend(
-                        "/topic/driver/" + driverId,
-                        "Ride is cancelled by rider"
-                );
+                String msg = "Ride is cancelled by rider";
+                notificationService.notifyDriver(driverId, msg);
 
             }
 
@@ -275,10 +276,9 @@ public class RideService {
             rideTable.updateItem(rideItem);
 
             //intimate the rider
-            messagingTemplate.convertAndSend(
-                    "/topic/rider/" + rideItem.getUserId(),
-                    "Ride cancelled by driver."
-            );
+            String userId = rideItem.getUserId();
+            String msg = "Ride cancelled by driver.";
+            notificationService.notifyRider(userId, msg);
 
             // remove the ride lock
             redisTemplate.delete("ride:" + rideId + ":lock");
