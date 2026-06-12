@@ -39,14 +39,14 @@ public class DriverController {
     }
 
     @PostMapping("/location")
-    public String driverLocation(@Valid @RequestBody LocationUpdateDto dto) {
+    public ResponseEntity<String> driverLocation(@Valid @RequestBody LocationUpdateDto dto) {
         String driverId = dto.getDriverId();
         String lng = dto.getLng();
         String lat = dto.getLat();
         String lastSeen = String.valueOf(Instant.now().toEpochMilli());
 
-        driverService.updateDriverLocation(driverId, lng, lat, lastSeen);
+        String response = driverService.updateDriverLocation(driverId, lng, lat, lastSeen);
 
-        return " ";
+        return ResponseEntity.status(HttpStatus.OK).body(response);
     }
 }

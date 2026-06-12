@@ -116,13 +116,12 @@ public class SQSPollingService {
                             rideData.put("estimatedFare", String.valueOf(rideItem.getEstimatedFare()));
 
                             for(String driverId: driverBatch) {
-                                System.out.println("Notification is sent to: " + driverId);
-
                                 if(presenceService.isOnline(driverId)) {
                                     messagingTemplate.convertAndSend(
                                             "/topic/driver/" + driverId,
                                             rideData
                                     );
+                                    System.out.println("Notification is sent to: " + driverId);
                                 }
                             }
 
@@ -295,13 +294,13 @@ public class SQSPollingService {
             List<String> driverBatch = driverService.fetchCandidateDrivers(0, 4, redisKey);
 
             for (String driverId : driverBatch) {
-                if()
-                messagingTemplate.convertAndSend(
-                        "/topic/driver/" + driverId,
-                        rideDate
-                );
-
-                System.out.println("Request sent");
+                if(presenceService.isOnline(driverId)) {
+                    messagingTemplate.convertAndSend(
+                            "/topic/driver/" + driverId,
+                            rideDate
+                    );
+                    System.out.println("Request sent");
+                }
             }
 
             DispatchRetryEvent event = new DispatchRetryEvent(rideId, 5);

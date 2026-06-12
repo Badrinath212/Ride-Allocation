@@ -112,12 +112,13 @@ public class DriverService {
         }
     }
 
-    public void updateDriverLocation(String driverId, String lng, String lat, String lastSeen) {
+    public String updateDriverLocation(String driverId, String lng, String lat, String lastSeen) {
         try {
-            presenceService.updateDriverLocation(driverId, lng, lat, lastSeen);
+            return presenceService.updateDriverLocation(driverId, lng, lat, lastSeen);
         } catch(Exception e) {
             System.out.println(e.getMessage());
         }
+        return "Something went wrong!";
     }
 
 }

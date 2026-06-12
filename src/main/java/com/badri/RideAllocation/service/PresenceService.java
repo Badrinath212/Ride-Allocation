@@ -30,7 +30,7 @@ public class PresenceService {
         }
     }
 
-    public void updateDriverLocation(String driverId, String lng, String lat, String lastSeen) {
+    public String updateDriverLocation(String driverId, String lng, String lat, String lastSeen) {
         String redisKey = "driver:presence:" + driverId;
 
         redisTemplate.opsForHash().put(redisKey, "lng", lng);
@@ -38,15 +38,18 @@ public class PresenceService {
         redisTemplate.opsForHash().put(redisKey, "lastSeen", lastSeen);
         redisTemplate.expire(redisKey, Duration.ofSeconds(30));
 
+        return "Location Updated";
+
     }
 
     public boolean isOnline(String driverId) {
         String redisKey = "driver:presence:" + driverId;
 
-        // check driver presence
-        Map<Object, Object> driverObj = redisTemplate.opsForHash().entries(redisKey);
+        Object statusObj = redisTemplate.opsForHash().get(redisKey, "status");
 
-        if(driverObj.isEmpty() || !driverObj.containsKey()) return false;
+        if(statusObj == null) return false;
+
+        return "ONLINE".equals(statusObj.toString());
 
     }
 }
