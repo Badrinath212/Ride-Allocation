@@ -1,6 +1,7 @@
 package com.badri.RideAllocation.service;
 
 import com.badri.RideAllocation.dto.RideResponseDto;
+import com.badri.RideAllocation.model.DriverProfile;
 import com.badri.RideAllocation.model.Ride;
 import com.badri.RideAllocation.vo.DispatchRetryEvent;
 import com.badri.RideAllocation.vo.RideQueueEvent;
@@ -44,12 +45,14 @@ public class SQSPollingService {
     private final StringRedisTemplate redisTemplate;
     private final PresenceService presenceService;
     private final NotificationService notificationService;
+    private final DynamoDbTable<DriverProfile> driverProfileTable;
 
     public SQSPollingService(SqsClient sqsClient,
                              DynamoDbTable<Ride> rideTable, DriverService driverService,
                              ObjectMapper objectMapper, SimpMessagingTemplate messagingTemplate,
                              StringRedisTemplate redisTemplate, PresenceService presenceService,
-                             NotificationService notificationService) {
+                             NotificationService notificationService,
+                             DynamoDbTable<DriverProfile> driverProfileTable) {
         System.out.println("constructor called");
         this.sqsClient = sqsClient;
         this.rideTable = rideTable;
@@ -59,6 +62,7 @@ public class SQSPollingService {
         this.redisTemplate = redisTemplate;
         this.presenceService = presenceService;
         this.notificationService = notificationService;
+        this.driverProfileTable = driverProfileTable;
     }
 
     @PostConstruct
@@ -114,15 +118,23 @@ public class SQSPollingService {
 
                             RideQueueEvent rideData = new RideQueueEvent(rideId, rideItem.getStatus(), rideItem.getPickupLat(), rideItem.getPickupLng(), String.valueOf(rideItem.getEstimatedFare()));
 
-//                            rideData.put("rideId", rideId);
-//                            rideData.put("pickupLng", rideItem.getPickupLng());
-//                            rideData.put("pickupLat", rideItem.getPickupLat());
-//                            rideData.put("estimatedFare", String.valueOf(rideItem.getEstimatedFare()));
-
                             for(String driverId: driverBatch) {
                                 if(presenceService.isOnline(driverId)) {
                                     notificationService.notifyRideRequestToDriverThroughWebSocket(driverId, rideData);
                                     System.out.println("Notification is sent to: " + driverId);
+
+                                    // update the total requests count for the driver
+                                    DriverProfile driverProfile = driverProfileTable.deleteItem(Key.builder().partitionValue(driverId).build());
+
+                                    if(driverProfile == null) {
+                                        System.out.println("Driver profile not available: " + driverId);
+                                        continue;
+                                    }
+
+                                    driverProfile.setTotalRequests(driverProfileTable.getTotalRequests() + 1);
+                                    driverProfileTable.putItem(driverProfile);
+
+                                    System.out.println("TotalRequests count is updated for driver: " + driverId);
                                 }
                             }
 
@@ -171,11 +183,6 @@ public class SQSPollingService {
                     RideResponseDto dto = objectMapper.readValue(message.body(), RideResponseDto.class);
 
                     Ride ride = rideTable.getItem(Key.builder().partitionValue(dto.getRideId()).build());
-
-//                    if(!"REQUESTED".equals(ride.getStatus())) {
-//                        deleteMessage(message.receiptHandle(), rideResponseQueueUrl);
-//                        continue;
-//                    }
 
                     processRideResponse(dto);
 
@@ -281,6 +288,19 @@ public class SQSPollingService {
                 if(presenceService.isOnline(driverId)) {
                     notificationService.notifyRideRequestToDriverThroughWebSocket(driverId, rideDate);
                     System.out.println("Request sent");
+
+                    // update the total requests count for the driver
+                    DriverProfile driverProfile = driverProfileTable.deleteItem(Key.builder().partitionValue(driverId).build());
+
+                    if(driverProfile == null) {
+                        System.out.println("Driver profile not available: " + driverId);
+                        continue;
+                    }
+
+                    driverProfile.setTotalRequests(driverProfileTable.getTotalRequests() + 1);
+                    driverProfileTable.putItem(driverProfile);
+
+                    System.out.println("TotalRequests count is updated for driver: " + driverId);
                 }
             }
 
@@ -321,17 +341,15 @@ public class SQSPollingService {
 
             System.out.println(rideItem.toString());
 
-//        if("ACCEPTED".equals(rideItem.getStatus())) {
-//            System.out.println("Ride is accepted by other driver");
-//            return;
-//        }
-
             // Driver rejects the ride & N drivers rejects need to query next N drivers
 
             System.out.println("driverId: " + driverId);
 
             if (status.equals("REJECTED")) {
                 System.out.println("Ride is rejected by the driver");
+
+                // update the driver requests
+
                 return;
             }
 
