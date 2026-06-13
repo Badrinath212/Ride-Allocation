@@ -1,5 +1,7 @@
 package com.badri.RideAllocation.config;
 
+import com.badri.RideAllocation.model.DriverProfile;
+import com.badri.RideAllocation.model.DriverRejectionEvents;
 import com.badri.RideAllocation.model.Ride;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -48,8 +50,26 @@ public class AwsConfig {
     @Bean
     public DynamoDbTable<Ride> rideTable(DynamoDbEnhancedClient ddcEnhanced) {
         try {
-            DynamoDbTable<Ride> rideTable = ddcEnhanced.table("Ride", TableSchema.fromBean(Ride.class));
-            return rideTable;
+            return ddcEnhanced.table("ride", TableSchema.fromBean(Ride.class));
+        } catch(Exception e) {
+            System.out.println(e.getMessage());
+        }
+        return null;
+    }
+
+    @Bean
+    public DynamoDbTable<DriverProfile> driverProfileTable(DynamoDbEnhancedClient ddcEnhanced) {
+        try {
+            return ddcEnhanced.table("driver-profile", TableSchema.fromBean(DriverProfile.class));
+        } catch (Exception e) {
+            System.out.println(e.getMessage());
+        }
+        return null;
+    }
+
+    public DynamoDbTable<DriverRejectionEvents> driverRejectionEvents(DynamoDbEnhancedClient ddcEnhanced) {
+        try {
+            return ddcEnhanced.table("driver-rejection-events", TableSchema.fromBean(DriverRejectionEvents.class));
         } catch(Exception e) {
             System.out.println(e.getMessage());
         }
@@ -59,14 +79,13 @@ public class AwsConfig {
     @Bean
     public SqsClient sqsClient() {
         try {
-            SqsClient sqsClient = SqsClient.builder()
+            return SqsClient.builder()
                     .endpointOverride(URI.create("http://localhost:4566"))
                     .region(Region.AP_SOUTH_1)
                     .credentialsProvider(StaticCredentialsProvider.create(
                             AwsBasicCredentials.create("test","test")
                     ))
                     .build();
-            return sqsClient;
         } catch(Exception e) {
             System.out.println(e.getMessage());
         }
