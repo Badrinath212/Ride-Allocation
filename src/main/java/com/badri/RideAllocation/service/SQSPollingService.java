@@ -124,15 +124,18 @@ public class SQSPollingService {
                                     System.out.println("Notification is sent to: " + driverId);
 
                                     // update the total requests count for the driver
-                                    DriverProfile driverProfile = driverProfileTable.deleteItem(Key.builder().partitionValue(driverId).build());
+                                    DriverProfile driverProfile = driverProfileTable.getItem(Key.builder().partitionValue(driverId).build());
 
                                     if(driverProfile == null) {
                                         System.out.println("Driver profile not available: " + driverId);
                                         continue;
                                     }
 
-                                    driverProfile.setTotalRequests(driverProfileTable.getTotalRequests() + 1);
+                                    System.out.println("Before updating the totalcount");
+                                    driverProfile.setTotalRequests(driverProfile.getTotalRequests() + 1);
+                                    System.out.println("Driver :" + driverId + " totalrequests: " + driverProfile.getTotalRequests());
                                     driverProfileTable.putItem(driverProfile);
+                                    System.out.println("After updating the totalcount");
 
                                     System.out.println("TotalRequests count is updated for driver: " + driverId);
                                 }
@@ -155,7 +158,7 @@ public class SQSPollingService {
                         }
                     }
                 } catch(Exception e) {
-                    System.out.println(e.getMessage());
+                    e.printStackTrace();
                 }
             }
 
@@ -290,14 +293,14 @@ public class SQSPollingService {
                     System.out.println("Request sent");
 
                     // update the total requests count for the driver
-                    DriverProfile driverProfile = driverProfileTable.deleteItem(Key.builder().partitionValue(driverId).build());
+                    DriverProfile driverProfile = driverProfileTable.getItem(Key.builder().partitionValue(driverId).build());
 
                     if(driverProfile == null) {
                         System.out.println("Driver profile not available: " + driverId);
                         continue;
                     }
 
-                    driverProfile.setTotalRequests(driverProfileTable.getTotalRequests() + 1);
+                    driverProfile.setTotalRequests(driverProfile.getTotalRequests() + 1);
                     driverProfileTable.putItem(driverProfile);
 
                     System.out.println("TotalRequests count is updated for driver: " + driverId);
@@ -348,8 +351,16 @@ public class SQSPollingService {
             if (status.equals("REJECTED")) {
                 System.out.println("Ride is rejected by the driver");
 
-                // update the driver requests
+                // update the driver total rejected requests
+                DriverProfile driverProfile = driverProfileTable.getItem(Key.builder().partitionValue(driverId).build());
 
+                if(driverProfile == null) {
+                    System.out.println("Driver profile is not available: " + driverId);
+                    return;
+                }
+                driverProfile.setTotalRejected(driverProfile.getTotalRejected() + 1);
+                driverProfileTable.putItem(driverProfile);
+                System.out.println("Driver Rejection count is increased: " + driverId);
                 return;
             }
 
@@ -361,10 +372,6 @@ public class SQSPollingService {
             System.out.println("After redis lock operations");
 
             if (Boolean.TRUE.equals(acquired)) {
-//            rideItem.setStatus(status);
-//            rideItem.setDriverId(driverId);
-//            rideTable.updateItem(rideItem);
-
                 // remove the driver from active drivers
                 System.out.println("Before remove driver from active drivers");
                 driverService.removeDriverFromActiveDrivers(driverId, "active_drivers");
@@ -380,6 +387,17 @@ public class SQSPollingService {
                 rideItem.setRideAssignedAt(Instant.now());
                 rideItem.setDriverId(driverId);
                 rideTable.updateItem(rideItem);
+
+                // update the total Accepted requests
+                DriverProfile driverProfile = driverProfileTable.getItem(Key.builder().partitionValue(driverId).build());
+
+                if(driverProfile == null) {
+                    System.out.println("Driver profile not available");
+                } else {
+                    driverProfile.setTotalAccepted(driverProfile.getTotalAccepted() + 1);
+                    driverProfileTable.putItem(driverProfile);
+                    System.out.println("Driver: "+ driverId + "Total Accepted requests count is updated");
+                }
 
                 System.out.println("Ride is processed");
                 System.out.println("Ride is assigned to driver: " + driverId);

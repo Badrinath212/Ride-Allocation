@@ -2,6 +2,7 @@ package com.badri.RideAllocation.service;
 
 import com.badri.RideAllocation.dto.BookRideResponseDto;
 import com.badri.RideAllocation.dto.EstFareResponseDto;
+import com.badri.RideAllocation.model.DriverProfile;
 import com.badri.RideAllocation.model.Ride;
 import com.badri.RideAllocation.vo.RideQueueEvent;
 import org.springframework.core.ParameterizedTypeReference;
@@ -37,12 +38,13 @@ public class RideService {
     private final StringRedisTemplate redisTemplate;
     private final String queueUrl = "http://sqs.ap-south-1.localhost.localstack.cloud:4566/000000000000/ride-queue";
     private final NotificationService notificationService;
+    private final DynamoDbTable<DriverProfile> driverProfileTable;
 
     public RideService(WebClient webClient, DynamoDbEnhancedClient ddcEnhanced,
                        DynamoDbTable<Ride> rideTable, SqsClient sqsClient,
                        ObjectMapper objectMapper, DriverService driverService,
                        SimpMessagingTemplate messagingTemplate, StringRedisTemplate redisTemplate,
-                       NotificationService notificationService) {
+                       NotificationService notificationService, DynamoDbTable<DriverProfile> driverProfileTable) {
         this.webClient = webClient;
         this.ddcEnhanced = ddcEnhanced;
         this.rideTable = rideTable;
@@ -52,6 +54,7 @@ public class RideService {
         this.messagingTemplate = messagingTemplate;
         this.redisTemplate = redisTemplate;
         this.notificationService = notificationService;
+        this.driverProfileTable = driverProfileTable;
     }
 
     public EstFareResponseDto getEstFare(String pickupLat,String pickupLng, String dropLat, String dropLng, String profile) {
@@ -304,6 +307,19 @@ public class RideService {
             sqsClient.sendMessage(sendMessageRequest);
 
             System.out.println("Message sent back to ride queue");
+
+            // update driver totalAccepted & rejected count
+            DriverProfile driverProfile = driverProfileTable.getItem(Key.builder().partitionValue(driverId).build());
+
+            if(driverProfile == null) {
+                System.out.println("Driver profile not available");
+            } else {
+                driverProfile.setTotalRejected(driverProfile.getTotalRejected() + 1);
+                driverProfile.setTotalAccepted(Math.max(0, driverProfile.getTotalAccepted() - 1));
+
+                driverProfileTable.putItem(driverProfile);
+                System.out.println("Driver profile is updated");
+            }
 
             return "Ride cancelled successfully!";
         } catch(Exception e) {

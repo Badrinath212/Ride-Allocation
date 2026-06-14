@@ -1,9 +1,6 @@
 package com.badri.RideAllocation.model;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 import software.amazon.awssdk.enhanced.dynamodb.extensions.annotations.DynamoDbVersionAttribute;
 import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbBean;
 import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbPartitionKey;
@@ -21,6 +18,9 @@ public class DriverProfile {
     private Long totalAccepted;
     private Long totalRejected;
     private Instant lastUpdatedAt;
+    private String vehicleType;
+    private String name;
+    private Integer rating;
     private Integer version;
 
     @DynamoDbPartitionKey
