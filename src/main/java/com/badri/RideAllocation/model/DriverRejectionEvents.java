@@ -20,10 +20,9 @@ public class DriverRejectionEvents {
     private String driverId;
     private Instant timestamp;
     private String rideId;
-    private Integer pickupDistance;
+    private Double cancelDistance;
     private Double estimatedFare;
-    private String reason;
-    private Integer version;
+    private String cancelReason;
 
     @DynamoDbPartitionKey
     public String getDriverId() {
@@ -33,11 +32,6 @@ public class DriverRejectionEvents {
     @DynamoDbSortKey
     public Instant getTimestamp() {
         return timestamp;
-    }
-
-    @DynamoDbVersionAttribute
-    public Integer getVersion() {
-        return version;
     }
 
 }

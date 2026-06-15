@@ -64,7 +64,7 @@ public class RideController {
 
     @PostMapping("/cancel/driver")
     public ResponseEntity<String> rideCancelByDriver(@Valid @RequestBody CancelRideDto dto) {
-        String response = rideService.rideCancelByDriver(dto.getRideId(), dto.getDriverId());
+        String response = rideService.rideCancelByDriver(dto.getRideId(), dto.getDriverId(), dto.getCancelReason());
         return ResponseEntity.status(HttpStatus.OK).body(response);
     }
 }

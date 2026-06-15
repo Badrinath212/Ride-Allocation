@@ -10,4 +10,5 @@ public class CancelRideDto {
     @NotNull
     private String rideId;
     private String driverId;
+    private String cancelReason;
 }

@@ -3,7 +3,9 @@ package com.badri.RideAllocation.service;
 import com.badri.RideAllocation.dto.BookRideResponseDto;
 import com.badri.RideAllocation.dto.EstFareResponseDto;
 import com.badri.RideAllocation.model.DriverProfile;
+import com.badri.RideAllocation.model.DriverRejectionEvents;
 import com.badri.RideAllocation.model.Ride;
+import com.badri.RideAllocation.utilities.Utility;
 import com.badri.RideAllocation.vo.RideQueueEvent;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -29,32 +31,30 @@ import java.util.UUID;
 public class RideService {
 
     private final WebClient webClient;
-    private final DynamoDbEnhancedClient ddcEnhanced;
     private final DynamoDbTable<Ride> rideTable;
     private final SqsClient sqsClient;
     private final ObjectMapper objectMapper;
     private final DriverService driverService;
-    private final SimpMessagingTemplate messagingTemplate;
     private final StringRedisTemplate redisTemplate;
     private final String queueUrl = "http://sqs.ap-south-1.localhost.localstack.cloud:4566/000000000000/ride-queue";
     private final NotificationService notificationService;
     private final DynamoDbTable<DriverProfile> driverProfileTable;
+    private final DynamoDbTable<DriverRejectionEvents> driverRejectionEventsTable;
 
-    public RideService(WebClient webClient, DynamoDbEnhancedClient ddcEnhanced,
-                       DynamoDbTable<Ride> rideTable, SqsClient sqsClient,
+    public RideService(WebClient webClient, DynamoDbTable<Ride> rideTable, SqsClient sqsClient,
                        ObjectMapper objectMapper, DriverService driverService,
-                       SimpMessagingTemplate messagingTemplate, StringRedisTemplate redisTemplate,
-                       NotificationService notificationService, DynamoDbTable<DriverProfile> driverProfileTable) {
+                       StringRedisTemplate redisTemplate, NotificationService notificationService,
+                       DynamoDbTable<DriverProfile> driverProfileTable,
+                       DynamoDbTable<DriverRejectionEvents> driverRejectionEventsTable) {
         this.webClient = webClient;
-        this.ddcEnhanced = ddcEnhanced;
         this.rideTable = rideTable;
         this.sqsClient = sqsClient;
         this.objectMapper = objectMapper;
         this.driverService = driverService;
-        this.messagingTemplate = messagingTemplate;
         this.redisTemplate = redisTemplate;
         this.notificationService = notificationService;
         this.driverProfileTable = driverProfileTable;
+        this.driverRejectionEventsTable = driverRejectionEventsTable;
     }
 
     public EstFareResponseDto getEstFare(String pickupLat,String pickupLng, String dropLat, String dropLng, String profile) {
@@ -253,7 +253,7 @@ public class RideService {
         return null;
     }
 
-    public String rideCancelByDriver(String rideId, String driverId) {
+    public String rideCancelByDriver(String rideId, String driverId, String cancelReason) {
         try {
             Ride rideItem = rideTable.getItem(Key.builder().partitionValue(rideId).build());
 
@@ -319,6 +319,46 @@ public class RideService {
 
                 driverProfileTable.putItem(driverProfile);
                 System.out.println("Driver profile is updated");
+            }
+
+            // update driver rejection events to db table
+
+            // pickup location
+            double pickupLat = Double.parseDouble(rideItem.getPickupLat());
+            double pickupLng = Double.parseDouble(rideItem.getPickupLng());
+
+            // current driver location
+            String redisKeyForDriverLocation = "driver:presence:" + driverId;
+            System.out.println("redisKey for presence: " + redisKeyForDriverLocation);
+            Object driverLng = redisTemplate.opsForHash().get(redisKeyForDriverLocation, "lng");
+            Object driverLat = redisTemplate.opsForHash().get(redisKeyForDriverLocation, "lat");
+
+            if(driverLat == null || driverLng == null) {
+                System.out.println("Driver location is not available: " + driverId);
+            } else {
+
+                double driverLatitude = Double.parseDouble(driverLat.toString());
+                double driverLongitude = Double.parseDouble(driverLng.toString());
+
+                double distance = Utility.calculateDistance(
+                        pickupLat,
+                        pickupLng,
+                        driverLatitude,
+                        driverLongitude
+                );
+                // Add the driver rejection ride to db table
+                DriverRejectionEvents driverRejectionEvents = DriverRejectionEvents.builder()
+                        .driverId(driverId)
+                        .rideId(rideId)
+                        .timestamp(Instant.now())
+                        .cancelReason(cancelReason)
+                        .estimatedFare(rideItem.getEstimatedFare())
+                        .cancelDistance(distance)
+                        .build();
+
+                driverRejectionEventsTable.putItem(driverRejectionEvents);
+
+                System.out.println("Driver Rejection Event is added");
             }
 
             return "Ride cancelled successfully!";

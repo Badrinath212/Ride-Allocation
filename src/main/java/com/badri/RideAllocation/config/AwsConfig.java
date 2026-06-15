@@ -67,6 +67,7 @@ public class AwsConfig {
         return null;
     }
 
+    @Bean
     public DynamoDbTable<DriverRejectionEvents> driverRejectionEvents(DynamoDbEnhancedClient ddcEnhanced) {
         try {
             return ddcEnhanced.table("driver-rejection-events", TableSchema.fromBean(DriverRejectionEvents.class));
