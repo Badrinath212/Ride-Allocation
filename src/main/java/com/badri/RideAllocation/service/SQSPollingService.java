@@ -3,34 +3,27 @@ package com.badri.RideAllocation.service;
 import com.badri.RideAllocation.dto.RideResponseDto;
 import com.badri.RideAllocation.model.DriverProfile;
 import com.badri.RideAllocation.model.Ride;
-import com.badri.RideAllocation.vo.DispatchRetryEvent;
-import com.badri.RideAllocation.vo.RideQueueEvent;
+import com.badri.RideAllocation.events.DispatchRetryEvent;
+import com.badri.RideAllocation.events.RideQueueEvent;
 import jakarta.annotation.PostConstruct;
-import org.springframework.data.geo.Distance;
 import org.springframework.data.geo.GeoResult;
-import org.springframework.data.geo.GeoResults;
 import org.springframework.data.redis.connection.RedisGeoCommands;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbTable;
 import software.amazon.awssdk.enhanced.dynamodb.Key;
-import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
-import software.amazon.awssdk.services.dynamodb.model.GetItemRequest;
 import software.amazon.awssdk.services.sqs.SqsClient;
 import software.amazon.awssdk.services.sqs.model.DeleteMessageRequest;
 import software.amazon.awssdk.services.sqs.model.Message;
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageRequest;
 import software.amazon.awssdk.services.sqs.model.SendMessageRequest;
-import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.ObjectMapper;
 
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 @Service
 public class SQSPollingService {
@@ -210,9 +203,6 @@ public class SQSPollingService {
             for(Message message: messages) {
                 try {
                     System.out.println("Message body: " + message.body());
-
-//                    Map<String, String> rideData = objectMapper.readValue(message.body(),
-//                            new TypeReference<Map<String, String>>(){});
 
                     RideQueueEvent rideQueueEvent = objectMapper.readValue(message.body(), RideQueueEvent.class);
 

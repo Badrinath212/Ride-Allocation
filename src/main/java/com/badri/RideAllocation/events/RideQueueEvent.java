@@ -1,4 +1,4 @@
-package com.badri.RideAllocation.vo;
+package com.badri.RideAllocation.events;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;

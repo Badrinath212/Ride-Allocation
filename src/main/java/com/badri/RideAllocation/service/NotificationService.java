@@ -1,10 +1,8 @@
 package com.badri.RideAllocation.service;
 
-import com.badri.RideAllocation.vo.RideQueueEvent;
+import com.badri.RideAllocation.events.RideQueueEvent;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
-
-import java.util.Map;
 
 @Service
 public class NotificationService {
