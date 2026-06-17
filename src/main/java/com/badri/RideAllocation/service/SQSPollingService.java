@@ -1,10 +1,12 @@
 package com.badri.RideAllocation.service;
 
 import com.badri.RideAllocation.dto.RideResponseDto;
+import com.badri.RideAllocation.events.DriverAcceptedEvent;
 import com.badri.RideAllocation.model.DriverProfile;
 import com.badri.RideAllocation.model.Ride;
 import com.badri.RideAllocation.events.DispatchRetryEvent;
 import com.badri.RideAllocation.events.RideQueueEvent;
+import com.badri.RideAllocation.producer.DriverEventProducer;
 import jakarta.annotation.PostConstruct;
 import org.springframework.data.geo.GeoResult;
 import org.springframework.data.redis.connection.RedisGeoCommands;
@@ -39,13 +41,14 @@ public class SQSPollingService {
     private final PresenceService presenceService;
     private final NotificationService notificationService;
     private final DynamoDbTable<DriverProfile> driverProfileTable;
+    private final DriverEventProducer driverEventProducer;
 
     public SQSPollingService(SqsClient sqsClient,
                              DynamoDbTable<Ride> rideTable, DriverService driverService,
                              ObjectMapper objectMapper, SimpMessagingTemplate messagingTemplate,
                              StringRedisTemplate redisTemplate, PresenceService presenceService,
                              NotificationService notificationService,
-                             DynamoDbTable<DriverProfile> driverProfileTable) {
+                             DynamoDbTable<DriverProfile> driverProfileTable, DriverEventProducer driverEventProducer) {
         System.out.println("constructor called");
         this.sqsClient = sqsClient;
         this.rideTable = rideTable;
@@ -56,6 +59,7 @@ public class SQSPollingService {
         this.presenceService = presenceService;
         this.notificationService = notificationService;
         this.driverProfileTable = driverProfileTable;
+        this.driverEventProducer = driverEventProducer;
     }
 
     @PostConstruct
@@ -391,6 +395,14 @@ public class SQSPollingService {
 
                 System.out.println("Ride is processed");
                 System.out.println("Ride is assigned to driver: " + driverId);
+
+                // call the driverEventProducer to publish an event. So metrics consumer will use this event
+                DriverAcceptedEvent driverAcceptedEvent = DriverAcceptedEvent.builder()
+                                .driverId(driverId)
+                                .build();
+                driverEventProducer.publishDriverAccepted(driverAcceptedEvent);
+                System.out.println("Kafka driver Accepted Event is sent");
+
             } else {
                 System.out.println("ride is already assigned to other driver");
                 System.out.println("/topic/driver/" + driverId);

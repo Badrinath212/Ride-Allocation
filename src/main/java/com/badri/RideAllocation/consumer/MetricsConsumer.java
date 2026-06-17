@@ -8,9 +8,9 @@ import org.springframework.stereotype.Component;
 public class MetricsConsumer {
     @KafkaListener(
             topics = "driver-events",
-            groupId = ""
+            groupId = "metrics-group"
     )
-    public void consume(DriverAcceptedEvent event) {
+    public void consumeDriverAcceptedEvent(DriverAcceptedEvent event) {
         System.out.println("Driver Event from kafka: " + event.toString());
     }
 }

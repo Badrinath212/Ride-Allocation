@@ -14,7 +14,7 @@ public class DriverEventProducer {
     }
 
     public void publishDriverAccepted(DriverAcceptedEvent event) {
-        kafkaTemplate.send("driver-events", event);
+        kafkaTemplate.send("driver-events", event.getDriverId(), event);
         System.out.println("message sent by Kafka");
     }
 }
