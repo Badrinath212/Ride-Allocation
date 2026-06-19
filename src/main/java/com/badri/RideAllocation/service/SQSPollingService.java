@@ -396,12 +396,17 @@ public class SQSPollingService {
                 System.out.println("Ride is processed");
                 System.out.println("Ride is assigned to driver: " + driverId);
 
-                // call the driverEventProducer to publish an event. So metrics consumer will use this event
-                DriverAcceptedEvent driverAcceptedEvent = DriverAcceptedEvent.builder()
-                                .driverId(driverId)
-                                .build();
-                driverEventProducer.publishDriverAccepted(driverAcceptedEvent);
-                System.out.println("Kafka driver Accepted Event is sent");
+                try {
+                    // call the driverEventProducer to publish an event. So metrics consumer will use this event
+                    DriverAcceptedEvent driverAcceptedEvent = DriverAcceptedEvent.builder()
+                            .driverId(driverId)
+                            .build();
+                    driverEventProducer.publishDriverAccepted(driverAcceptedEvent);
+                    System.out.println("Kafka driver Accepted Event is sent");
+                } catch(Exception e) {
+                    e.printStackTrace();
+                }
+
 
             } else {
                 System.out.println("ride is already assigned to other driver");
