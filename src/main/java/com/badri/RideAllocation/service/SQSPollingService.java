@@ -1,7 +1,7 @@
 package com.badri.RideAllocation.service;
 
 import com.badri.RideAllocation.dto.RideResponseDto;
-import com.badri.RideAllocation.events.DriverAcceptedEvent;
+import com.badri.RideAllocation.events.DriverRideResponseEvent;
 import com.badri.RideAllocation.model.DriverProfile;
 import com.badri.RideAllocation.model.Ride;
 import com.badri.RideAllocation.events.DispatchRetryEvent;
@@ -355,6 +355,16 @@ public class SQSPollingService {
                 driverProfile.setTotalRejected(driverProfile.getTotalRejected() + 1);
                 driverProfileTable.putItem(driverProfile);
                 System.out.println("Driver Rejection count is increased: " + driverId);
+
+                // send the driverId to Kafka for metrics service
+                DriverRideResponseEvent driverRideResponseEvent = DriverRideResponseEvent.builder()
+                        .driverId(driverId)
+                        .build();
+
+                String json = objectMapper.writeValueAsString(driverRideResponseEvent);
+
+                driverEventProducer.publishDriverRideResponseEvent(json, driverId);
+                System.out.println("Driver Rejection is sent to Kafka");
                 return;
             }
 
@@ -398,10 +408,11 @@ public class SQSPollingService {
 
                 try {
                     // call the driverEventProducer to publish an event. So metrics consumer will use this event
-                    DriverAcceptedEvent driverAcceptedEvent = DriverAcceptedEvent.builder()
+                    DriverRideResponseEvent driverAcceptedEvent = DriverRideResponseEvent.builder()
                             .driverId(driverId)
                             .build();
-                    driverEventProducer.publishDriverAccepted(driverAcceptedEvent);
+                    String json = objectMapper.writeValueAsString(driverAcceptedEvent);
+                    driverEventProducer.publishDriverRideResponseEvent(json, driverId);
                     System.out.println("Kafka driver Accepted Event is sent");
                 } catch(Exception e) {
                     e.printStackTrace();

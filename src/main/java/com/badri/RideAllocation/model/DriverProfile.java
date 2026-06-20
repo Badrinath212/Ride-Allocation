@@ -22,6 +22,7 @@ public class DriverProfile {
     private String name;
     private Integer rating;
     private Integer version;
+    private Double acceptanceRate;
 
     @DynamoDbPartitionKey
     public String getDriverId() {

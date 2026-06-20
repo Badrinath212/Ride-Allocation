@@ -2,9 +2,11 @@ package com.badri.RideAllocation.service;
 
 import com.badri.RideAllocation.dto.BookRideResponseDto;
 import com.badri.RideAllocation.dto.EstFareResponseDto;
+import com.badri.RideAllocation.events.DriverRideResponseEvent;
 import com.badri.RideAllocation.model.DriverProfile;
 import com.badri.RideAllocation.model.DriverRejectionEvents;
 import com.badri.RideAllocation.model.Ride;
+import com.badri.RideAllocation.producer.DriverEventProducer;
 import com.badri.RideAllocation.utilities.Utility;
 import com.badri.RideAllocation.events.RideQueueEvent;
 import org.springframework.core.ParameterizedTypeReference;
@@ -37,12 +39,14 @@ public class RideService {
     private final NotificationService notificationService;
     private final DynamoDbTable<DriverProfile> driverProfileTable;
     private final DynamoDbTable<DriverRejectionEvents> driverRejectionEventsTable;
+    private final DriverEventProducer driverEventProducer;
 
     public RideService(WebClient webClient, DynamoDbTable<Ride> rideTable, SqsClient sqsClient,
                        ObjectMapper objectMapper, DriverService driverService,
                        StringRedisTemplate redisTemplate, NotificationService notificationService,
                        DynamoDbTable<DriverProfile> driverProfileTable,
-                       DynamoDbTable<DriverRejectionEvents> driverRejectionEventsTable) {
+                       DynamoDbTable<DriverRejectionEvents> driverRejectionEventsTable,
+                       DriverEventProducer driverEventProducer) {
         this.webClient = webClient;
         this.rideTable = rideTable;
         this.sqsClient = sqsClient;
@@ -52,6 +56,7 @@ public class RideService {
         this.notificationService = notificationService;
         this.driverProfileTable = driverProfileTable;
         this.driverRejectionEventsTable = driverRejectionEventsTable;
+        this.driverEventProducer = driverEventProducer;
     }
 
     public EstFareResponseDto getEstFare(String pickupLat,String pickupLng, String dropLat, String dropLng, String profile) {
@@ -316,6 +321,16 @@ public class RideService {
 
                 driverProfileTable.putItem(driverProfile);
                 System.out.println("Driver profile is updated");
+
+                // send the event to Kafka for metrics
+                DriverRideResponseEvent driverRideResponseEvent = DriverRideResponseEvent.builder()
+                        .driverId(driverId)
+                        .build();
+
+                String json = objectMapper.writeValueAsString(driverRideResponseEvent);
+
+                driverEventProducer.publishDriverRideResponseEvent(json, driverId);
+                System.out.println("Driver Rejection sent to Kafka");
             }
 
             // update driver rejection events to db table
