@@ -1,0 +1,282 @@
+RIDE ALLOCATION - ACTUAL FLOW
+==============================
+
+PHASE 1: USER BOOKS RIDE
+------------------------
+1. User calls POST /ride/estFare
+   ↓
+2. RideService.getEstFare()
+   - Call GraphHopper API
+   - Calculate: Base(50) + Distance*10 + Time*2
+   ↓
+3. User confirms booking
+   ↓
+4. POST /ride/bookRide
+   ↓
+5. RideService.bookRide()
+   - Generate Ride ID (UUID)
+   - Save Ride to DynamoDB (Status: REQUESTED)
+   - Create message: {rideId, status, pickupLat, pickupLng, estimatedFare}
+   - Send to SQS: ride-queue
+   - Return BookRideResponseDto
+   ↓
+6. Show "Finding Drivers..." to user
+   ↓
+   → Continue to Phase 2
+
+
+PHASE 2: SQS POLLING - INITIAL DISPATCH
+----------------------------------------
+THREAD: pollMessages()
+   
+7. Continuously polls SQS: ride-queue (waitTime: 10s, batch: 10)
+   ↓
+8. For each message:
+   - Deserialize RideQueueEvent
+   - Check if Ride Status == REQUESTED
+   - If status changed (ride accepted) → Delete and continue
+   ↓
+9. Call RideService.processRide()
+   ↓
+10. DriverService.getNearestNDrivers()
+    - Redis Geo Search in "active_drivers" key
+    - Radius: 10 km
+    - Limit: 50 drivers (sorted by distance)
+    ↓
+11. Store all 50 drivers in Redis list
+    - Key: "ride:{rideId}:candidates"
+    - Expiry: 5 minutes
+    ↓
+12. Get first batch (0-4): 5 drivers
+    ↓
+13. For each of 5 drivers:
+    - Check if driver is ONLINE (via PresenceService)
+    - If online → Send ride notification via WebSocket
+       * Endpoint: /topic/driver/{driverId}
+       * Send: RideQueueEvent
+    - Update driver's totalRequests += 1 (in DynamoDB)
+    ↓
+14. Create DispatchRetryEvent(rideId, startIndex=5)
+    ↓
+15. Send to SQS: dispatch-scheduling-queue
+    - Delay: 10 seconds (allows drivers 10s to respond)
+    ↓
+    → Continue to Phase 3
+
+
+PHASE 3: SQS POLLING - RETRY DISPATCH (Batch by Batch)
+-------------------------------------------------------
+THREAD: pollSchedulingQueue()
+   
+16. Continuously polls SQS: dispatch-scheduling-queue (waitTime: 5s, batch: 10)
+    ↓
+17. For each DispatchRetryEvent:
+    - Get rideId and startIndex (e.g., 5, 10, 15, 20, 25, 30, 35, 40, 45, 50)
+    ↓
+18. Check Ride Status in DynamoDB
+    - If Status != REQUESTED → Ride already accepted
+       * Delete message from queue
+       * Stop retry
+    - If Status == REQUESTED → Continue
+    ↓
+19. Fetch next batch of drivers
+    - From Redis list "ride:{rideId}:candidates"
+    - Range: startIndex to startIndex+4 (5 drivers)
+    ↓
+20. If startIndex >= 50 OR drivers list empty:
+    - Delete message from queue
+    - Notify rider: "No drivers are available"
+    - Ride cancelled
+    ↓
+21. For each driver in batch:
+    - Check if driver is ONLINE
+    - If online → Send ride notification via WebSocket
+    - Update totalRequests += 1
+    ↓
+22. Delete current message from queue
+    ↓
+23. Create new DispatchRetryEvent(rideId, startIndex + 5)
+    ↓
+24. Send to SQS: dispatch-scheduling-queue
+    - Delay: 10 seconds
+    ↓
+    REPEAT: Go back to step 16
+    (Continues until driver accepts or no drivers left)
+
+
+PHASE 4: DRIVER RESPONSE VIA WEBSOCKET
+--------------------------------------
+25. Driver receives ride notification (from Phase 2 or Phase 3)
+    ↓
+    DRIVER HAS 2 OPTIONS:
+    
+    OPTION A: DRIVER ACCEPTS RIDE
+    ├─ Driver calls WebSocket: /app/ride-response
+    ├─ Send: RideResponseDto{rideId, driverId, status="ACCEPTED"}
+    ├─ WebSocketController.handleRideRequest()
+    ├─ Deserialize and send to SQS: ride-process queue
+    └─ Return response to driver
+    
+    OPTION B: DRIVER REJECTS RIDE
+    ├─ Driver calls WebSocket: /app/ride-response
+    ├─ Send: RideResponseDto{rideId, driverId, status="REJECTED"}
+    ├─ WebSocketController.handleRideRequest()
+    ├─ Deserialize and send to SQS: ride-process queue
+    └─ Return response to driver
+    
+    OPTION C: NO RESPONSE (TIMEOUT)
+    └─ After 10 seconds, dispatch queue sends next batch
+       (Driver can still respond later, but new batch is already sent)
+
+
+PHASE 5: SQS POLLING - PROCESS DRIVER RESPONSE
+-----------------------------------------------
+THREAD: pollRideResponses()
+   
+26. Continuously polls SQS: ride-process queue (waitTime: 10s, batch: 10)
+    ↓
+27. For each RideResponseDto:
+    - Get rideId, driverId, status
+    ↓
+28. If status == "REJECTED":
+    ├─ Update driver's totalRejected += 1 (DynamoDB)
+    ├─ Create DriverRideResponseEvent(driverId)
+    ├─ Publish to Kafka: driver-events topic
+    │  (MetricsConsumer will consume this and recalculate acceptance rate)
+    ├─ Delete message from ride-process queue
+    └─ Return (dispatch queue continues with next batch)
+    ↓
+29. If status == "ACCEPTED":
+    ├─ Try Distributed Lock: "ride:{rideId}:lock" for 5 minutes
+    │
+    │  LOCK ACQUIRED? (First driver to accept)
+    │  ↓ YES
+    │  ├─ Remove driver from Redis active_drivers
+    │  ├─ Update ride status: DRIVER_ASSIGNED (DynamoDB)
+    │  ├─ Update ride.driverId (DynamoDB)
+    │  ├─ Update ride.rideAssignedAt = now (DynamoDB)
+    │  ├─ Update driver's totalAccepted += 1 (DynamoDB)
+    │  ├─ Notify rider via WebSocket: "Captain is on the way!"
+    │  ├─ Create DriverRideResponseEvent(driverId)
+    │  ├─ Publish to Kafka: driver-events topic
+    │  ├─ Delete message from ride-process queue
+    │  └─ RIDE ASSIGNED ✓ → Continue to Phase 6
+    │
+    │  LOCK NOT ACQUIRED? (Another driver accepted first)
+    │  ↓ NO
+    │  ├─ Notify driver via WebSocket: "Ride already assigned to other driver"
+    │  ├─ Delete message from ride-process queue
+    │  └─ Continue polling
+
+
+PHASE 6: RIDE LIFECYCLE
+-----------------------
+AFTER RIDE ASSIGNED:
+
+30. Driver is En Route:
+    - Driver sends location updates: POST /driver/location
+    - DriverController → DriverService
+    - Updates Redis: driver:presence:{driverId} with lng, lat
+    - Heartbeat: POST /driver/heartbeat
+    - Updates Redis: driver:presence:{driverId} with timestamp
+    ↓
+31. Driver Arrives:
+    - Driver calls: POST /ride/arrived
+    - RideService.rideArrived()
+    - Update ride status: DRIVER_ARRIVED (DynamoDB)
+    - Update rideItem.driverArrivedAt = now
+    ↓
+32. Ride Starts:
+    - Driver calls: POST /ride/start
+    - RideService.rideStart()
+    - Update ride status: RIDE_STARTED (DynamoDB)
+    - Update rideItem.rideStartedAt = now
+    ↓
+33. Ride Completes:
+    - Driver calls: POST /ride/complete with finalLat, finalLng
+    - RideService.rideComplete()
+    - Update ride status: COMPLETED (DynamoDB)
+    - Update rideItem.rideCompletedAt = now
+    - Add driver back to active_drivers in Redis
+    ↓
+34. MetricsConsumer (Kafka Consumer):
+    - Listens to driver-events topic
+    - For each DriverRideResponseEvent:
+      * Get driver's totalAccepted and totalRequests
+      * Calculate acceptance rate = totalAccepted / totalRequests
+      * Update driver's acceptanceRate in DynamoDB
+    ↓
+    RIDE COMPLETED ✓
+
+
+CANCELLATION SCENARIOS
+---------------------
+
+SCENARIO A: USER CANCELS (Status != RIDE_STARTED)
+├─ POST /ride/cancel/rider
+├─ Check status:
+│  ├─ If COMPLETED → Cannot cancel
+│  ├─ If RIDE_STARTED → Cannot cancel
+│  └─ If other → Can cancel
+├─ Update ride status: RIDER_CANCELLED
+├─ If driver assigned:
+│  ├─ Remove ride lock: "ride:{rideId}:lock"
+│  ├─ Add driver back to active_drivers
+│  └─ Notify driver
+└─ Return "Ride cancelled"
+
+SCENARIO B: DRIVER CANCELS (Status != RIDE_STARTED)
+├─ POST /ride/cancel/driver with cancelReason
+├─ Check status:
+│  ├─ If COMPLETED → Cannot cancel
+│  ├─ If RIDE_STARTED → Cannot cancel
+│  └─ If other → Can cancel
+├─ Update ride status: REQUESTED (back to finding drivers)
+├─ Update ride.driverId = null
+├─ Remove ride lock: "ride:{rideId}:lock"
+├─ Add driver back to active_drivers
+├─ Add driver to rejection set: "ride:{rideId}:rejectedDrivers" (1 hour expiry)
+├─ Notify rider: "Ride cancelled by driver"
+├─ Dispatch continues with remaining drivers
+└─ Return "Ride cancelled"
+
+
+THREE SEPARATE SQS QUEUES:
+---------------------------
+
+Queue 1: ride-queue (pollMessages thread)
+├─ Contains: RideQueueEvent (new ride requests)
+├─ Process: Initial dispatch to first 5 drivers
+├─ Flow: ride-queue → find drivers → send notifications → dispatch-queue
+
+Queue 2: dispatch-scheduling-queue (pollSchedulingQueue thread)
+├─ Contains: DispatchRetryEvent with startIndex
+├─ Process: Retry with next batch every 10 seconds
+├─ Flow: Batch 1-5 → wait 10s → Batch 6-10 → wait 10s → Batch 11-15... (until 50 or accepted)
+├─ Max Retries: 10 times (0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50)
+└─ Total Time: ~100 seconds maximum
+
+Queue 3: ride-process (pollRideResponses thread)
+├─ Contains: RideResponseDto (driver accept/reject)
+├─ Process: Handle driver response
+└─ Flow: If rejected → update metrics, continue. If accepted → lock and assign
+
+
+KEY REDIS OPERATIONS:
+---------------------
+- active_drivers (Geospatial Set): All online drivers with location
+- ride:{rideId}:candidates (List): All 50 candidate drivers
+- ride:{rideId}:rejectedDrivers (Set): Drivers who rejected this ride
+- ride:{rideId}:lock (String): Distributed lock for ride assignment
+- driver:presence:{driverId} (Hash): Driver's online status, location, heartbeat
+
+
+TIMING:
+-------
+- Initial notification to first 5 drivers: Immediate
+- Retry batch dispatch interval: 10 seconds
+- Total time to try all 50 drivers: ~100 seconds
+- Driver presence TTL: 30 seconds (heartbeat extends it)
+- Ride candidates TTL: 5 minutes
+- Ride lock TTL: 5 minutes
+- Rejection set TTL: 1 hour
