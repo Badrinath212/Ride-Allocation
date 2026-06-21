@@ -45,7 +45,10 @@ public class MetricsConsumer {
         Long totalAccepted = driverProfile.getTotalAccepted();
         Long totalRequests = driverProfile.getTotalRequests();
 
-        double acceptanceRate = (double) totalAccepted/totalRequests;
+        double acceptanceRate = 0.0;
+        if(totalRequests > 0) {
+            acceptanceRate = (double) totalAccepted/totalRequests;
+        }
 
         driverProfile.setAcceptanceRate(acceptanceRate);
         driverProfileTable.updateItem(driverProfile);
