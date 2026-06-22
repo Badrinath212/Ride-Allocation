@@ -1,0 +1,234 @@
+ANALYTICS SERVICE
+=================
+
+PHASE 1: BUSINESS EVENTS GENERATED
+----------------------------------
+
+1. User books ride
+   ↓
+2. RideRequestedEvent
+   ↓
+3. Publish Kafka
+
+4. Driver accepts ride
+   ↓
+5. RideAcceptedEvent
+   ↓
+6. Publish Kafka
+
+7. Ride starts
+   ↓
+8. RideStartedEvent
+   ↓
+9. Publish Kafka
+
+10. Ride completes
+    ↓
+11. RideCompletedEvent
+    ↓
+12. Publish Kafka
+
+13. Ride cancelled
+    ↓
+14. RideCancelledEvent
+    ↓
+15. Publish Kafka
+
+16. Driver accepts/rejects
+    ↓
+17. DriverRideResponseEvent
+    ↓
+18. Publish Kafka
+
+
+
+PHASE 2: ANALYTICS CONSUMER
+---------------------------
+
+THREAD: AnalyticsConsumer
+
+19. Subscribe Kafka Topics
+
+    RideRequestedEvent
+    RideAcceptedEvent
+    RideStartedEvent
+    RideCompletedEvent
+    RideCancelledEvent
+    DriverRideResponseEvent
+
+20. Continuously Consume Events
+    ↓
+
+21. Route Event To Analytics Processor
+    ↓
+
+
+
+PHASE 3: DAILY ANALYTICS AGGREGATION
+------------------------------------
+
+22. If RideRequestedEvent
+
+    DailyAnalytics
+
+    rideRequests += 1
+
+23. If RideAcceptedEvent
+
+    DailyAnalytics
+
+    rideAccepted += 1
+
+24. If RideStartedEvent
+
+    DailyAnalytics
+
+    rideStarted += 1
+
+25. If RideCompletedEvent
+
+    DailyAnalytics
+
+    rideCompleted += 1
+
+    revenue += fare
+
+    totalDistance += distance
+
+    totalDuration += duration
+
+26. If RideCancelledEvent
+
+    DailyAnalytics
+
+    rideCancelled += 1
+
+27. Persist DailyAnalytics
+    ↓
+
+
+
+PHASE 4: HOURLY ANALYTICS
+-------------------------
+
+28. Extract Hour Bucket
+
+    Example:
+    2026-06-22-09
+
+29. Update HourlyAnalytics
+
+    rideRequests += 1
+
+    rideCompleted += 1
+
+30. Persist HourlyAnalytics
+    ↓
+
+
+
+PHASE 5: ZONE ANALYTICS
+-----------------------
+
+31. Extract Zone
+
+    Whitefield
+    HSR
+    Marathahalli
+    Koramangala
+
+32. Update ZoneAnalytics
+
+    totalRides += 1
+
+    revenue += fare
+
+33. Persist ZoneAnalytics
+    ↓
+
+
+
+PHASE 6: DRIVER ANALYTICS
+-------------------------
+
+34. Extract DriverId
+
+35. Update DriverAnalytics
+
+    completedTrips += 1
+
+    revenue += fare
+
+36. If DriverRideResponseEvent
+
+    acceptedCount += 1
+
+    rejectedCount += 1
+
+37. Recalculate
+
+    acceptanceRate
+
+38. Persist DriverAnalytics
+    ↓
+
+
+
+PHASE 7: DASHBOARD DATA BUILDING
+--------------------------------
+
+39. Read DailyAnalytics
+
+40. Read HourlyAnalytics
+
+41. Read ZoneAnalytics
+
+42. Read DriverAnalytics
+
+43. Build Dashboard DTO
+
+    Overview Metrics
+
+    Revenue Metrics
+
+    Peak Hour Metrics
+
+    Zone Metrics
+
+    Driver Metrics
+    ↓
+
+
+
+PHASE 8: DASHBOARD APIS
+-----------------------
+
+44. GET /analytics/overview
+
+45. GET /analytics/revenue
+
+46. GET /analytics/hourly
+
+47. GET /analytics/zones
+
+48. GET /analytics/drivers/top
+    ↓
+
+
+
+PHASE 9: REAL-TIME DASHBOARD
+----------------------------
+
+THREAD: DashboardPublisher
+
+49. Every 5 Seconds
+
+50. Read Analytics Tables
+
+51. Build Dashboard Snapshot
+
+52. Send WebSocket Event
+
+53. Push To Admin Dashboard
+
+54. Dashboard Updates Live
