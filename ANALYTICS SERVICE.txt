@@ -4,13 +4,13 @@ ANALYTICS SERVICE
 PHASE 1: BUSINESS EVENTS GENERATED
 ----------------------------------
 
-1. User books ride
+1. User books ride (done)
    ↓
 2. RideRequestedEvent
    ↓
 3. Publish Kafka
 
-4. Driver accepts ride
+4. Driver accepts ride (done)
    ↓
 5. RideAcceptedEvent
    ↓
@@ -18,23 +18,23 @@ PHASE 1: BUSINESS EVENTS GENERATED
 
 7. Ride starts
    ↓
-8. RideStartedEvent
+8. RideStartedEvent (done)
    ↓
 9. Publish Kafka
 
 10. Ride completes
     ↓
-11. RideCompletedEvent
+11. RideCompletedEvent (done)
     ↓
 12. Publish Kafka
 
 13. Ride cancelled
     ↓
-14. RideCancelledEvent
+14. RideCancelledEvent (both rider & driver cancel by the extra attribute) (done)
     ↓
 15. Publish Kafka
 
-16. Driver accepts/rejects
+16. Driver accepts/rejects (done)
     ↓
 17. DriverRideResponseEvent
     ↓

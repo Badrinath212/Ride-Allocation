@@ -2,11 +2,14 @@ package com.badri.RideAllocation.service;
 
 import com.badri.RideAllocation.dto.BookRideResponseDto;
 import com.badri.RideAllocation.dto.EstFareResponseDto;
+import com.badri.RideAllocation.enums.RideEventType;
 import com.badri.RideAllocation.events.DriverRideResponseEvent;
+import com.badri.RideAllocation.events.RideEvent;
 import com.badri.RideAllocation.model.DriverProfile;
 import com.badri.RideAllocation.model.DriverRejectionEvents;
 import com.badri.RideAllocation.model.Ride;
 import com.badri.RideAllocation.producer.DriverEventProducer;
+import com.badri.RideAllocation.producer.RideEventProducer;
 import com.badri.RideAllocation.utilities.Utility;
 import com.badri.RideAllocation.events.RideQueueEvent;
 import org.springframework.core.ParameterizedTypeReference;
@@ -40,13 +43,14 @@ public class RideService {
     private final DynamoDbTable<DriverProfile> driverProfileTable;
     private final DynamoDbTable<DriverRejectionEvents> driverRejectionEventsTable;
     private final DriverEventProducer driverEventProducer;
+    private final RideEventProducer rideEventProducer;
 
     public RideService(WebClient webClient, DynamoDbTable<Ride> rideTable, SqsClient sqsClient,
                        ObjectMapper objectMapper, DriverService driverService,
                        StringRedisTemplate redisTemplate, NotificationService notificationService,
                        DynamoDbTable<DriverProfile> driverProfileTable,
                        DynamoDbTable<DriverRejectionEvents> driverRejectionEventsTable,
-                       DriverEventProducer driverEventProducer) {
+                       DriverEventProducer driverEventProducer, RideEventProducer rideEventProducer) {
         this.webClient = webClient;
         this.rideTable = rideTable;
         this.sqsClient = sqsClient;
@@ -57,6 +61,7 @@ public class RideService {
         this.driverProfileTable = driverProfileTable;
         this.driverRejectionEventsTable = driverRejectionEventsTable;
         this.driverEventProducer = driverEventProducer;
+        this.rideEventProducer = rideEventProducer;
     }
 
     public EstFareResponseDto getEstFare(String pickupLat,String pickupLng, String dropLat, String dropLng, String profile) {
@@ -136,9 +141,17 @@ public class RideService {
 
             System.out.println("message is sent to sqs");
 
-            BookRideResponseDto responseDto = new BookRideResponseDto(rideId, estimatedFare, status);
+            // send the ride request event to Kafka
+            RideEvent rideEvent = RideEvent.builder()
+                            .eventType(RideEventType.REQUESTED)
+                            .rideId(rideId)
+                            .timestamp(Instant.now().toString())
+                            .build();
+            String rideEventJson = objectMapper.writeValueAsString(rideEvent);
+            rideEventProducer.publishRideEvent(rideEventJson, rideId);
+            System.out.println("Ride Requested Event to Kafka");
 
-            return responseDto;
+            return new BookRideResponseDto(rideId, estimatedFare, status);
         } catch(Exception e) {
             System.out.println(e.getMessage());
         }
@@ -155,6 +168,19 @@ public class RideService {
 
             // need to add the driver to active_drivers
             driverService.addDriverToActiveDrivers(rideItem.getDriverId(), finalLng, finalLat, "active_drivers");
+
+            // send ride completed event to Kafka
+            RideEvent rideEvent = RideEvent.builder()
+                    .eventType(RideEventType.COMPLETED)
+                    .rideId(rideId)
+                    .driverId(rideItem.getDriverId())
+                    .timestamp(Instant.now().toString())
+                    .totalFare(rideItem.getEstimatedFare())
+                    .build();
+
+            String rideEventJson = objectMapper.writeValueAsString(rideEvent);
+            rideEventProducer.publishRideEvent(rideEventJson, rideId);
+            System.out.println("Ride completed Event sent to Kafka");
 
             return "Ride Completed";
 
@@ -195,6 +221,16 @@ public class RideService {
             rideItem.setRideStartedAt(Instant.now());
             rideTable.updateItem(rideItem);
 
+            // send the ride started event to Kafka
+            RideEvent rideEvent = RideEvent.builder()
+                    .eventType(RideEventType.STARTED)
+                    .rideId(rideId)
+                    .driverId(driverId)
+                    .timestamp(Instant.now().toString())
+                    .build();
+
+            String rideEventJson = objectMapper.writeValueAsString(rideEvent);
+            rideEventProducer.publishRideEvent(rideEventJson, rideId);
             return "Ride started. Happy journey!";
 
         } catch(Exception e) {
@@ -245,6 +281,17 @@ public class RideService {
                 String msg = "Ride is cancelled by rider";
                 notificationService.notifyDriver(driverId, msg);
 
+                RideEvent rideEvent = RideEvent.builder()
+                        .rideId(rideId)
+                        .eventType(RideEventType.CANCELLED)
+                        .driverId(driverId)
+                        .cancelledBy("rider")
+                        .timestamp(Instant.now().toString())
+                        .build();
+
+                String rideEventJson = objectMapper.writeValueAsString(rideEvent);
+                rideEventProducer.publishRideEvent(rideEventJson, rideId);
+                System.out.println("Driver Rejection sent to Kafka");
             }
 
             return "Ride is cancelled";
@@ -330,7 +377,20 @@ public class RideService {
                 String json = objectMapper.writeValueAsString(driverRideResponseEvent);
 
                 driverEventProducer.publishDriverRideResponseEvent(json, driverId);
+
+                // send the event to Kafka
+                RideEvent rideEvent = RideEvent.builder()
+                                .rideId(rideId)
+                                .eventType(RideEventType.CANCELLED)
+                                .driverId(driverId)
+                                .cancelledBy("driver")
+                                .timestamp(Instant.now().toString())
+                                .build();
+
+                String rideEventJson = objectMapper.writeValueAsString(rideEvent);
+                rideEventProducer.publishRideEvent(rideEventJson, rideId);
                 System.out.println("Driver Rejection sent to Kafka");
+
             }
 
             // update driver rejection events to db table

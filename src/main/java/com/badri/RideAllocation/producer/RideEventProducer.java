@@ -11,7 +11,7 @@ public class RideEventProducer {
         this.kafkaTemplate = kafkaTemplate;
     }
 
-    public void publishRideRequestEvent(String event, String id) {
+    public void publishRideEvent(String event, String id) {
         kafkaTemplate.send(
                 "ride-events",
                 id,

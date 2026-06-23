@@ -1,12 +1,15 @@
 package com.badri.RideAllocation.service;
 
 import com.badri.RideAllocation.dto.RideResponseDto;
+import com.badri.RideAllocation.enums.RideEventType;
 import com.badri.RideAllocation.events.DriverRideResponseEvent;
+import com.badri.RideAllocation.events.RideEvent;
 import com.badri.RideAllocation.model.DriverProfile;
 import com.badri.RideAllocation.model.Ride;
 import com.badri.RideAllocation.events.DispatchRetryEvent;
 import com.badri.RideAllocation.events.RideQueueEvent;
 import com.badri.RideAllocation.producer.DriverEventProducer;
+import com.badri.RideAllocation.producer.RideEventProducer;
 import jakarta.annotation.PostConstruct;
 import org.springframework.data.geo.GeoResult;
 import org.springframework.data.redis.connection.RedisGeoCommands;
@@ -42,13 +45,15 @@ public class SQSPollingService {
     private final NotificationService notificationService;
     private final DynamoDbTable<DriverProfile> driverProfileTable;
     private final DriverEventProducer driverEventProducer;
+    private final RideEventProducer rideEventProducer;
 
     public SQSPollingService(SqsClient sqsClient,
                              DynamoDbTable<Ride> rideTable, DriverService driverService,
                              ObjectMapper objectMapper, SimpMessagingTemplate messagingTemplate,
                              StringRedisTemplate redisTemplate, PresenceService presenceService,
                              NotificationService notificationService,
-                             DynamoDbTable<DriverProfile> driverProfileTable, DriverEventProducer driverEventProducer) {
+                             DynamoDbTable<DriverProfile> driverProfileTable,
+                             DriverEventProducer driverEventProducer, RideEventProducer rideEventProducer) {
         System.out.println("constructor called");
         this.sqsClient = sqsClient;
         this.rideTable = rideTable;
@@ -60,6 +65,7 @@ public class SQSPollingService {
         this.notificationService = notificationService;
         this.driverProfileTable = driverProfileTable;
         this.driverEventProducer = driverEventProducer;
+        this.rideEventProducer = rideEventProducer;
     }
 
     @PostConstruct
@@ -413,6 +419,17 @@ public class SQSPollingService {
                             .build();
                     String json = objectMapper.writeValueAsString(driverAcceptedEvent);
                     driverEventProducer.publishDriverRideResponseEvent(json, driverId);
+
+                    // send ride accepted event to Kafka
+                    RideEvent rideEvent = RideEvent.builder()
+                                    .eventType(RideEventType.ACCEPTED)
+                                    .rideId(rideId)
+                                    .driverId(driverId)
+                                    .timestamp(Instant.now().toString())
+                                    .build();
+
+                    String rideEventJson = objectMapper.writeValueAsString(rideEvent);
+                    rideEventProducer.publishRideEvent(rideEventJson, rideId);
                     System.out.println("Kafka driver Accepted Event is sent");
                 } catch(Exception e) {
                     e.printStackTrace();
