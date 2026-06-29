@@ -42,7 +42,7 @@ PHASE 1: BUSINESS EVENTS GENERATED
 
 
 
-PHASE 2: ANALYTICS CONSUMER
+PHASE 2: ANALYTICS CONSUMER (Implementing)
 ---------------------------
 
 THREAD: AnalyticsConsumer

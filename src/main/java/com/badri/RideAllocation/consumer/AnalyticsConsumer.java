@@ -56,22 +56,70 @@ public class AnalyticsConsumer {
 
         switch (rideEvent.getEventType()) {
             case REQUESTED -> {
-                dateObj.setTotalAccepted();
+                Long totalRequests = dateObj.getTotalRequests();
+                if(totalRequests == null) {
+                    totalRequests = 0L;
+                }
+                dateObj.setTotalAccepted(totalRequests + 1);
+
+                // save the obj in table
+                dailyRideAnalyticsTable.putItem(dateObj);
+                System.out.println("Total requests are updated in daily analytics");
             }
             case ACCEPTED -> {
+                Long totalAccepted = dateObj.getTotalAccepted();
+                if(totalAccepted == null) {
+                    totalAccepted = 0L;
+                }
+                dateObj.setTotalAccepted(totalAccepted + 1);
 
+                // save the obj in table
+                dailyRideAnalyticsTable.putItem(dateObj);
+                System.out.println("Total accepted requests are updated in daily analytics");
             }
             case CANCELLED -> {
+                Long totalCancelled = dateObj.getTotalCancelled();
+                if(totalCancelled == null) {
+                    totalCancelled = 0L;
+                }
+                dateObj.setTotalCancelled(totalCancelled + 1);
 
+                // save the obj in table
+                dailyRideAnalyticsTable.putItem(dateObj);
+                System.out.println("Total cancelled requests are updated in daily analytics");
             }
             case STARTED -> {
+                Long totalStarted = dateObj.getTotalStarted();
+                if(totalStarted == null) {
+                    totalStarted = 0L;
+                }
+                dateObj.setTotalStarted(totalStarted + 1);
 
+                // save the obj in table
+                dailyRideAnalyticsTable.putItem(dateObj);
+                System.out.println("Total started requests are updated in daily analytics");
             }
             case REJECTED -> {
+                Long totalRejected = dateObj.getTotalRejected();
+                if(totalRejected == null) {
+                    totalRejected = 0L;
+                }
+                dateObj.setTotalRejected(totalRejected + 1);
 
+                // save the obj in table
+                dailyRideAnalyticsTable.putItem(dateObj);
+                System.out.println("Total rejected requests are updated in daily analytics");
             }
             case COMPLETED -> {
+                Long totalCompleted = dateObj.getTotalCompleted();
+                if(totalCompleted == null) {
+                    totalCompleted = 0L;
+                }
+                dateObj.setTotalCompleted(totalCompleted + 1);
 
+                // save the obj in table
+                dailyRideAnalyticsTable.putItem(dateObj);
+                System.out.println("Total completed requests are updated in daily analytics");
             }
             case null, default -> {
                 System.out.println("Event type is required ");
