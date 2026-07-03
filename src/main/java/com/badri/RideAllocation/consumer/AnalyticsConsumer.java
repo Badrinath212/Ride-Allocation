@@ -48,7 +48,7 @@ public class AnalyticsConsumer {
 
         if(dateObj == null) {
             dateObj = DailyRideAnalytics.builder()
-                    .data(date)
+                    .date(date)
                     .build();
         }
 

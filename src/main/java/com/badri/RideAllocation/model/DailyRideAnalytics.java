@@ -17,7 +17,7 @@ import java.time.Instant;
 @AllArgsConstructor
 @Builder
 public class DailyRideAnalytics {
-    private String data;
+    private String date;
     private Long totalRequests;
     private Long totalAccepted;
     private Long totalRejected;
@@ -29,7 +29,7 @@ public class DailyRideAnalytics {
 
     @DynamoDbPartitionKey
     public String getDate() {
-        return data;
+        return date;
     }
 
     @DynamoDbVersionAttribute
