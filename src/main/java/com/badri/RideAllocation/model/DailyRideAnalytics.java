@@ -24,6 +24,7 @@ public class DailyRideAnalytics {
     private Long totalStarted;
     private Long totalCompleted;
     private Long totalCancelled;
+    private Double totalRevenue;
     private Long version;
 
     @DynamoDbPartitionKey

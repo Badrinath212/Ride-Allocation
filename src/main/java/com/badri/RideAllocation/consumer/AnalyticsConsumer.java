@@ -112,10 +112,15 @@ public class AnalyticsConsumer {
             }
             case COMPLETED -> {
                 Long totalCompleted = dateObj.getTotalCompleted();
+                Double totalRevenue = dateObj.getTotalRevenue();
                 if(totalCompleted == null) {
                     totalCompleted = 0L;
                 }
+                if(totalRevenue == null) {
+                    totalRevenue = 0.0;
+                }
                 dateObj.setTotalCompleted(totalCompleted + 1);
+                dateObj.setTotalRevenue(totalRevenue + rideEvent.getTotalFare());
 
                 // save the obj in table
                 dailyRideAnalyticsTable.putItem(dateObj);
