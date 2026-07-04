@@ -64,7 +64,16 @@ public class AnalyticsConsumer {
                         .build();
                 dynamoDbClient.updateItem(updateDailyItemRequest);
                 System.out.println("Total requests are updated in daily analytics");
-                
+
+                // update the totalRequests of hourly analytics
+                UpdateItemRequest updateHourlyItemRequest = UpdateItemRequest.builder()
+                        .tableName("hourly-analytics")
+                        .key(Map.of("dateHour", AttributeValue.fromS(dateHour)))
+                        .updateExpression("ADD totalRequests :inc")
+                        .expressionAttributeValues(Map.of(":inc", AttributeValue.fromN("1")))
+                        .build();
+                dynamoDbClient.updateItem(updateHourlyItemRequest);
+                System.out.println("Total requests are updated in hourly analytics");
 
 
             }
@@ -78,6 +87,15 @@ public class AnalyticsConsumer {
                         .build();
                 dynamoDbClient.updateItem(updateDailyItemRequest);
                 System.out.println("Total accepted requests are updated in daily analytics");
+
+                UpdateItemRequest updateHourlyItemRequest = UpdateItemRequest.builder()
+                        .tableName("hourly-analytics")
+                        .key(Map.of("dateHour", AttributeValue.fromS(dateHour)))
+                        .updateExpression("ADD totalAccepted :inc")
+                        .expressionAttributeValues(Map.of(":inc", AttributeValue.fromN("1")))
+                        .build();
+                dynamoDbClient.updateItem(updateHourlyItemRequest);
+                System.out.println("Total accepted requests are updated in hourly analytics");
             }
             case CANCELLED -> {
                 UpdateItemRequest updateDailyItemRequest = UpdateItemRequest.builder()
@@ -87,8 +105,16 @@ public class AnalyticsConsumer {
                         .expressionAttributeValues(Map.of(":inc", AttributeValue.fromN("1")))
                         .build();
                 dynamoDbClient.updateItem(updateDailyItemRequest);
-
                 System.out.println("Total cancelled requests are updated in daily analytics");
+
+                UpdateItemRequest updateHourlyItemRequest = UpdateItemRequest.builder()
+                        .tableName("hourly-analytics")
+                        .key(Map.of("dateHour", AttributeValue.fromS(dateHour)))
+                        .updateExpression("ADD totalCancelled :inc")
+                        .expressionAttributeValues(Map.of(":inc", AttributeValue.fromN("1")))
+                        .build();
+                dynamoDbClient.updateItem(updateHourlyItemRequest);
+                System.out.println("Total Cancelled requests are updated in hourly analytics");
             }
             case STARTED -> {
                 UpdateItemRequest updateDailyItemRequest = UpdateItemRequest.builder()
@@ -99,6 +125,15 @@ public class AnalyticsConsumer {
                         .build();
                 dynamoDbClient.updateItem(updateDailyItemRequest);
                 System.out.println("Total started requests are updated in daily analytics");
+
+                UpdateItemRequest updateHourlyItemRequest = UpdateItemRequest.builder()
+                        .tableName("hourly-analytics")
+                        .key(Map.of("dateHour", AttributeValue.fromS(dateHour)))
+                        .updateExpression("ADD totalStarted :inc")
+                        .expressionAttributeValues(Map.of(":inc", AttributeValue.fromN("1")))
+                        .build();
+                dynamoDbClient.updateItem(updateHourlyItemRequest);
+                System.out.println("Total started requests are updated in hourly analytics");
             }
             case REJECTED -> {
                 UpdateItemRequest updateDailyItemRequest = UpdateItemRequest.builder()
@@ -109,6 +144,15 @@ public class AnalyticsConsumer {
                         .build();
                 dynamoDbClient.updateItem(updateDailyItemRequest);
                 System.out.println("Total rejected requests are updated in daily analytics");
+
+                UpdateItemRequest updateHourlyItemRequest = UpdateItemRequest.builder()
+                        .tableName("hourly-analytics")
+                        .key(Map.of("dateHour", AttributeValue.fromS(dateHour)))
+                        .updateExpression("ADD totalRejected :inc")
+                        .expressionAttributeValues(Map.of(":inc", AttributeValue.fromN("1")))
+                        .build();
+                dynamoDbClient.updateItem(updateHourlyItemRequest);
+                System.out.println("Total rejected requests are updated in hourly analytics");
             }
             case COMPLETED -> {
 
@@ -123,6 +167,15 @@ public class AnalyticsConsumer {
                         .build();
                 dynamoDbClient.updateItem(updateDailyItemRequest);
                 System.out.println("Total completed requests are updated in daily analytics");
+
+                UpdateItemRequest updateHourlyItemRequest = UpdateItemRequest.builder()
+                        .tableName("hourly-analytics")
+                        .key(Map.of("dateHour", AttributeValue.fromS(dateHour)))
+                        .updateExpression("ADD totalCompleted :inc")
+                        .expressionAttributeValues(Map.of(":inc", AttributeValue.fromN("1")))
+                        .build();
+                dynamoDbClient.updateItem(updateHourlyItemRequest);
+                System.out.println("Total completed requests are updated in hourly analytics");
             }
             case null, default -> {
                 System.out.println("Event type is required ");
