@@ -1,9 +1,6 @@
 package com.badri.RideAllocation.config;
 
-import com.badri.RideAllocation.model.DailyRideAnalytics;
-import com.badri.RideAllocation.model.DriverProfile;
-import com.badri.RideAllocation.model.DriverRejectionEvents;
-import com.badri.RideAllocation.model.Ride;
+import com.badri.RideAllocation.model.*;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
@@ -82,6 +79,15 @@ public class AwsConfig {
     public DynamoDbTable<DailyRideAnalytics> dailyRideAnalytics(DynamoDbEnhancedClient ddcEnhanced) {
         try {
             return ddcEnhanced.table("daily-analytics", TableSchema.fromBean(DailyRideAnalytics.class));
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Bean
+    public DynamoDbTable<HourlyRideAnalytics> hourlyRideAnalytics(DynamoDbEnhancedClient ddcEnhanced) {
+        try {
+            return ddcEnhanced.table("hourly-analytics", TableSchema.fromBean(HourlyRideAnalytics.class));
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

@@ -25,15 +25,10 @@ public class DailyRideAnalytics {
     private Long totalCompleted;
     private Long totalCancelled;
     private Double totalRevenue;
-    private Long version;
 
     @DynamoDbPartitionKey
     public String getDate() {
         return date;
     }
 
-    @DynamoDbVersionAttribute
-    public Long getVersion() {
-        return version;
-    }
 }
