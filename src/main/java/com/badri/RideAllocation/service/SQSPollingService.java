@@ -370,6 +370,17 @@ public class SQSPollingService {
                 String json = objectMapper.writeValueAsString(driverRideResponseEvent);
 
                 driverEventProducer.publishDriverRideResponseEvent(json, driverId);
+
+                // send the ride rejected event to Kafka
+                RideEvent rideRejectedEvent = RideEvent.builder()
+                                .rideId(rideId)
+                                        .driverId(driverId)
+                                                .eventType(RideEventType.REJECTED)
+                                                        .timestamp(Instant.now().toString())
+                                                                .build();
+
+                String rideRejectedJson = objectMapper.writeValueAsString(rideRejectedEvent);
+                rideEventProducer.publishRideEvent(rideRejectedJson, rideId);
                 System.out.println("Driver Rejection is sent to Kafka");
                 return;
             }

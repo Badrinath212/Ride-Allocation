@@ -50,7 +50,7 @@ public class AnalyticsConsumer {
         String hour = String.valueOf(zonedDateTime.getHour());
         System.out.println("Extracted hour: " + hour);
 
-        String dateHour = date + hour;
+        String dateHour = date + "#" + hour;
 
         switch (rideEvent.getEventType()) {
             case REQUESTED -> {
@@ -156,10 +156,15 @@ public class AnalyticsConsumer {
             }
             case COMPLETED -> {
 
+                Double totalFare = rideEvent.getTotalFare();
+                if(totalFare == null) {
+                    System.out.println("Total fare for this ride is null");
+                }
+
                 UpdateItemRequest updateDailyItemRequest = UpdateItemRequest.builder()
                         .tableName("daily-analytics")
                         .key(Map.of("date", AttributeValue.fromS(date)))
-                        .updateExpression("ADD totalRequests :inc, totalRevenue :fare")
+                        .updateExpression("ADD totalCompleted :inc, totalRevenue :fare")
                         .expressionAttributeValues(Map.of(
                                 ":inc", AttributeValue.fromN("1"),
                                 ":fare", AttributeValue.fromN(String.valueOf(rideEvent.getTotalFare()))
@@ -171,8 +176,11 @@ public class AnalyticsConsumer {
                 UpdateItemRequest updateHourlyItemRequest = UpdateItemRequest.builder()
                         .tableName("hourly-analytics")
                         .key(Map.of("dateHour", AttributeValue.fromS(dateHour)))
-                        .updateExpression("ADD totalCompleted :inc")
-                        .expressionAttributeValues(Map.of(":inc", AttributeValue.fromN("1")))
+                        .updateExpression("ADD totalCompleted :inc, totalRevenue :fare")
+                        .expressionAttributeValues(Map.of(
+                                ":inc", AttributeValue.fromN("1"),
+                                ":fare", AttributeValue.fromN(String.valueOf(rideEvent.getTotalFare()))
+                        ))
                         .build();
                 dynamoDbClient.updateItem(updateHourlyItemRequest);
                 System.out.println("Total completed requests are updated in hourly analytics");

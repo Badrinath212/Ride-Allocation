@@ -67,25 +67,25 @@ THREAD: AnalyticsConsumer
 PHASE 3: DAILY ANALYTICS AGGREGATION
 ------------------------------------
 
-22. If RideRequestedEvent
+22. If RideRequestedEvent (working)
 
     DailyAnalytics
 
     rideRequests += 1
 
-23. If RideAcceptedEvent
+23. If RideAcceptedEvent (working)
 
     DailyAnalytics
 
     rideAccepted += 1
 
-24. If RideStartedEvent
+24. If RideStartedEvent (working)
 
     DailyAnalytics
 
     rideStarted += 1
 
-25. If RideCompletedEvent
+25. If RideCompletedEvent (working)
 
     DailyAnalytics
 
@@ -97,18 +97,21 @@ PHASE 3: DAILY ANALYTICS AGGREGATION
 
     totalDuration += duration
 
-26. If RideCancelledEvent
+26. If RideCancelledEvent (working)
 
     DailyAnalytics
 
     rideCancelled += 1
 
-27. Persist DailyAnalytics
-    ↓
+27. RideRejectedEvent (working)
+    
+    DailyAnalytics
+
+    rideRejected += 1
 
 
 
-PHASE 4: HOURLY ANALYTICS
+PHASE 4: HOURLY ANALYTICS (working)
 -------------------------
 
 28. Extract Hour Bucket

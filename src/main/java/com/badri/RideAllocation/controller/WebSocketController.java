@@ -34,8 +34,6 @@ public class WebSocketController {
 
         sqsClient.sendMessage(sendMessageRequest);
 
-
-
         System.out.println("ride response sent to sqs queue");
     }
 }

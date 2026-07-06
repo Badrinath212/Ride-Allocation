@@ -281,18 +281,19 @@ public class RideService {
                 String msg = "Ride is cancelled by rider";
                 notificationService.notifyDriver(driverId, msg);
 
-                RideEvent rideEvent = RideEvent.builder()
-                        .rideId(rideId)
-                        .eventType(RideEventType.CANCELLED)
-                        .driverId(driverId)
-                        .cancelledBy("rider")
-                        .timestamp(Instant.now().toString())
-                        .build();
-
-                String rideEventJson = objectMapper.writeValueAsString(rideEvent);
-                rideEventProducer.publishRideEvent(rideEventJson, rideId);
-                System.out.println("Driver Rejection sent to Kafka");
             }
+
+            RideEvent rideEvent = RideEvent.builder()
+                    .rideId(rideId)
+                    .eventType(RideEventType.CANCELLED)
+                    .driverId(driverId)
+                    .cancelledBy("rider")
+                    .timestamp(Instant.now().toString())
+                    .build();
+
+            String rideEventJson = objectMapper.writeValueAsString(rideEvent);
+            rideEventProducer.publishRideEvent(rideEventJson, rideId);
+            System.out.println("Rider Ride Rejection sent to Kafka");
 
             return "Ride is cancelled";
 
@@ -378,19 +379,6 @@ public class RideService {
 
                 driverEventProducer.publishDriverRideResponseEvent(json, driverId);
 
-                // send the event to Kafka
-                RideEvent rideEvent = RideEvent.builder()
-                                .rideId(rideId)
-                                .eventType(RideEventType.CANCELLED)
-                                .driverId(driverId)
-                                .cancelledBy("driver")
-                                .timestamp(Instant.now().toString())
-                                .build();
-
-                String rideEventJson = objectMapper.writeValueAsString(rideEvent);
-                rideEventProducer.publishRideEvent(rideEventJson, rideId);
-                System.out.println("Driver Rejection sent to Kafka");
-
             }
 
             // update driver rejection events to db table
@@ -432,6 +420,19 @@ public class RideService {
 
                 System.out.println("Driver Rejection Event is added");
             }
+
+            // send the event to Kafka
+            RideEvent rideEvent = RideEvent.builder()
+                    .rideId(rideId)
+                    .eventType(RideEventType.CANCELLED)
+                    .driverId(driverId)
+                    .cancelledBy("driver")
+                    .timestamp(Instant.now().toString())
+                    .build();
+
+            String rideEventJson = objectMapper.writeValueAsString(rideEvent);
+            rideEventProducer.publishRideEvent(rideEventJson, rideId);
+            System.out.println("Driver Rejection sent to Kafka");
 
             return "Ride cancelled successfully!";
         } catch(Exception e) {
