@@ -182,6 +182,16 @@ public class RideService {
             rideEventProducer.publishRideEvent(rideEventJson, rideId);
             System.out.println("Ride completed Event sent to Kafka");
 
+            // update driver profile
+            DriverProfile driverProfile = driverProfileTable.getItem(
+                    Key.builder().partitionValue(rideItem.getDriverId()).build()
+            );
+
+            if(driverProfile != null) {
+                driverProfile.setTotalCompleted(driverProfile.getTotalCompleted() + 1);
+                System.out.println("Driver total completed rides updated");
+            }
+
             return "Ride Completed";
 
         } catch(Exception e) {

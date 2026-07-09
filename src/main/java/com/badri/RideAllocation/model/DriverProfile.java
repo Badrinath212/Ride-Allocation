@@ -17,6 +17,7 @@ public class DriverProfile {
     private Long totalRequests;
     private Long totalAccepted;
     private Long totalRejected;
+    private Long totalCompleted;
     private Instant lastUpdatedAt;
     private String vehicleType;
     private String name;
