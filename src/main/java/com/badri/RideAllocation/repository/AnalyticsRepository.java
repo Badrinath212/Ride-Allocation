@@ -30,6 +30,8 @@ public class AnalyticsRepository {
         DailyRideAnalytics dailyRideAnalytics = dailyRideAnalyticsTable.getItem(
                 Key.builder().partitionValue(date).build()
         );
+
+        if(dailyRideAnalytics == null) return null;
         return DailyAnalyticsResponseDto.builder()
                 .date(dailyRideAnalytics.getDate())
                 .totalAccepted(dailyRideAnalytics.getTotalAccepted())
@@ -64,6 +66,8 @@ public class AnalyticsRepository {
         DriverProfile driverProfile = driverProfileTable.getItem(
                 Key.builder().partitionValue(driverId).build()
         );
+
+
         return DriverAnalyticsDto.builder()
                 .driverId(driverProfile.getDriverId())
                 .name(driverProfile.getName())
