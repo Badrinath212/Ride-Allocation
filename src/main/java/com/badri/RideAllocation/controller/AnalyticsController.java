@@ -36,10 +36,15 @@ public class AnalyticsController {
     }
 
     @GetMapping("/hourly")
-    public ResponseEntity<HourlyAnalyticsResponseDto> getHourlyAnalytics(@RequestParam String dateHour) {
-        System.out.println("date hour:" + dateHour);
+    public ResponseEntity<HourlyAnalyticsResponseDto> getHourlyAnalytics(
+            @RequestParam
+            @DateTimeFormat(pattern = "yyyy-MM-dd")
+            LocalDate date,
+            @RequestParam
+            String hour) {
+        System.out.println("date hour:" + date + "#" + hour);
 
-        HourlyAnalyticsResponseDto responseDto = analyticsService.getHourlyAnalytics(dateHour);
+        HourlyAnalyticsResponseDto responseDto = analyticsService.getHourlyAnalytics(date, hour);
         return ResponseEntity.status(HttpStatus.OK).body(responseDto);
     }
 

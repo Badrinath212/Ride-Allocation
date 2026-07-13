@@ -49,6 +49,7 @@ public class AnalyticsRepository {
         HourlyRideAnalytics hourlyRideAnalytics = hourlyRideAnalyticsTable.getItem(
                 Key.builder().partitionValue(dateHour).build()
         );
+        if(hourlyRideAnalytics == null) return null;
         return HourlyAnalyticsResponseDto.builder()
                 .dateHour(hourlyRideAnalytics.getDateHour())
                 .totalCompleted(hourlyRideAnalytics.getTotalCompleted())

@@ -28,11 +28,23 @@ public class AnalyticsService {
         return responseDto;
     }
 
-    public HourlyAnalyticsResponseDto getHourlyAnalytics(String dateHour) {
-        return analyticsRepository.getHourlyAnalytics(dateHour);
+    public HourlyAnalyticsResponseDto getHourlyAnalytics(LocalDate date, String hour) {
+
+        String dateHour = date.toString() + "#" + hour;
+        System.out.println("dateHour: " + dateHour);
+
+        HourlyAnalyticsResponseDto responseDto = analyticsRepository.getHourlyAnalytics(dateHour);
+
+        if(responseDto == null) throw new ResourceNotFoundException("Resource Not Available");
+        return responseDto;
     }
 
     public DriverAnalyticsDto getDriverAnalytics(String driverId) {
-        return analyticsRepository.getDriverAnalytics(driverId);
+
+        DriverAnalyticsDto responseDto = analyticsRepository.getDriverAnalytics(driverId);
+
+        if(responseDto == null) throw new ResourceNotFoundException("Resource Not Available");
+
+        return responseDto;
     }
 }
