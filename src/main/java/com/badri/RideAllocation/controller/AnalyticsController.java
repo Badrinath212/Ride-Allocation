@@ -55,4 +55,18 @@ public class AnalyticsController {
         DriverAnalyticsDto responseDto = analyticsService.getDriverAnalytics(driverId);
         return ResponseEntity.status(HttpStatus.OK).body(responseDto);
     }
+
+    @GetMapping("/weekly")
+    public ResponseEntity<DailyAnalyticsResponseDto> getWeeklyAnalytics(
+            @RequestParam
+            @DateTimeFormat(pattern = "yyyy-MM-dd")
+            LocalDate startDate,
+            @RequestParam
+            @DateTimeFormat(pattern = "yyyy-MM-dd")
+            LocalDate endDate
+    ) {
+        System.out.println("StartDate: " + startDate + " " + "EndDate: " + endDate);
+
+        return null;
+    }
 }

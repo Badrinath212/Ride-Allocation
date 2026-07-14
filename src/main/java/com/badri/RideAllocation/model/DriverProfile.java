@@ -21,7 +21,7 @@ public class DriverProfile {
     private Instant lastUpdatedAt;
     private String vehicleType;
     private String name;
-    private Integer rating;
+    private Double rating;
     private Integer version;
     private Double acceptanceRate;
 
