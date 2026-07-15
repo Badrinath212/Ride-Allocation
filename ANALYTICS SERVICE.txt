@@ -235,3 +235,25 @@ THREAD: DashboardPublisher
 53. Push To Admin Dashboard
 
 54. Dashboard Updates Live
+
+
+
+
+
+
+
+
+
+-----------------
+-- weekly comparison of analytics (pending) 
+-----------------
+- Driver Analytics
+  - table creation (pending)
+  - Mapping (completed)
+  - Make Kafka events by the driver
+    -- request (implemented)
+    -- rejected (implemented)
+    -- accepted (implemented)
+    -- cancelled (implemented)
+    -- started (implemented)
+    -- completed

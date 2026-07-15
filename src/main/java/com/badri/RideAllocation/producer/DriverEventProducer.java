@@ -26,9 +26,19 @@ public class DriverEventProducer {
         }
     }
 
+    // For metrics calculations
     public void publishDriverRideResponseEvent(String event, String id) {
 
-        kafkaTemplate.send("driver-events", id, event);
+        kafkaTemplate.send("driver-events-metrics", id, event);
         System.out.println("message sent by Kafka");
     }
+
+    // For Driver Analytics
+    public void publishDriverEvent(String event, String id) {
+
+        kafkaTemplate.send("driver-events", id, event);
+        System.out.println("Message is sent to driver-events");
+    }
+
+
 }

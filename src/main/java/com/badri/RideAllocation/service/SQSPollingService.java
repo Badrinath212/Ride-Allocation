@@ -141,6 +141,19 @@ public class SQSPollingService {
                                     System.out.println("After updating the totalcount");
 
                                     System.out.println("TotalRequests count is updated for driver: " + driverId);
+
+                                    // send the request event to kafka
+                                    RideEvent rideEvent = RideEvent.builder()
+                                            .rideId(rideId)
+                                            .driverId(driverId)
+                                            .eventType(RideEventType.REQUESTED)
+                                            .timestamp(Instant.now().toString())
+                                            .build();
+
+                                    String rideEventJson = objectMapper.writeValueAsString(rideEvent);
+                                    driverEventProducer.publishDriverEvent(rideEventJson, driverId);
+
+                                    System.out.println("Ride Requested event sent to Kafka driver-events");
                                 }
                             }
 
@@ -304,6 +317,19 @@ public class SQSPollingService {
                     driverProfileTable.putItem(driverProfile);
 
                     System.out.println("TotalRequests count is updated for driver: " + driverId);
+
+                    // send the request event to kafka
+                    RideEvent rideEvent = RideEvent.builder()
+                                    .rideId(rideId)
+                                    .driverId(driverId)
+                                    .eventType(RideEventType.REQUESTED)
+                                    .timestamp(Instant.now().toString())
+                                    .build();
+
+                    String rideEventJson = objectMapper.writeValueAsString(rideEvent);
+                    driverEventProducer.publishDriverEvent(rideEventJson, driverId);
+
+                    System.out.println("Ride Requested event sent to Kafka driver-events");
                 }
             }
 
@@ -374,14 +400,28 @@ public class SQSPollingService {
                 // send the ride rejected event to Kafka
                 RideEvent rideRejectedEvent = RideEvent.builder()
                                 .rideId(rideId)
-                                        .driverId(driverId)
-                                                .eventType(RideEventType.REJECTED)
-                                                        .timestamp(Instant.now().toString())
-                                                                .build();
+                                .driverId(driverId)
+                                .eventType(RideEventType.REJECTED)
+                                .timestamp(Instant.now().toString())
+                                .build();
 
                 String rideRejectedJson = objectMapper.writeValueAsString(rideRejectedEvent);
                 rideEventProducer.publishRideEvent(rideRejectedJson, rideId);
                 System.out.println("Driver Rejection is sent to Kafka");
+
+                // send the rejected event to Kafka
+                RideEvent driverRejectedEvent = RideEvent.builder()
+                        .rideId(rideId)
+                        .driverId(driverId)
+                        .eventType(RideEventType.REJECTED)
+                        .timestamp(Instant.now().toString())
+                        .build();
+
+                String driverRejectedJson = objectMapper.writeValueAsString(driverRejectedEvent);
+                driverEventProducer.publishDriverEvent(driverRejectedJson, driverId);
+
+                System.out.println("Ride Rejected event sent to Kafka driver-events");
+
                 return;
             }
 
@@ -443,8 +483,21 @@ public class SQSPollingService {
                     rideEventProducer.publishRideEvent(rideEventJson, rideId);
                     System.out.println("Kafka driver Accepted Event is sent");
                 } catch(Exception e) {
-                    e.printStackTrace();
+                    throw new RuntimeException(e);
                 }
+
+                // send the accepted event to Kafka
+                RideEvent driverAcceptedEvent = RideEvent.builder()
+                        .rideId(rideId)
+                        .driverId(driverId)
+                        .eventType(RideEventType.ACCEPTED)
+                        .timestamp(Instant.now().toString())
+                        .build();
+
+                String driverAcceptedJson = objectMapper.writeValueAsString(driverAcceptedEvent);
+                driverEventProducer.publishDriverEvent(driverAcceptedJson, driverId);
+
+                System.out.println("Ride accepted event sent to Kafka driver-events");
 
 
             } else {

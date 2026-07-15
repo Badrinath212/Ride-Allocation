@@ -241,6 +241,19 @@ public class RideService {
 
             String rideEventJson = objectMapper.writeValueAsString(rideEvent);
             rideEventProducer.publishRideEvent(rideEventJson, rideId);
+
+            // send the started event to Kafka
+            RideEvent rideStartedEvent = RideEvent.builder()
+                    .rideId(rideId)
+                    .driverId(driverId)
+                    .eventType(RideEventType.STARTED)
+                    .timestamp(Instant.now().toString())
+                    .build();
+
+            String rideStartedJson = objectMapper.writeValueAsString(rideStartedEvent);
+            driverEventProducer.publishDriverEvent(rideStartedJson, driverId);
+
+            System.out.println("Ride Cancelled event sent to Kafka driver-events");
             return "Ride started. Happy journey!";
 
         } catch(Exception e) {
@@ -388,6 +401,19 @@ public class RideService {
                 String json = objectMapper.writeValueAsString(driverRideResponseEvent);
 
                 driverEventProducer.publishDriverRideResponseEvent(json, driverId);
+
+                // send the Cancelled event to kafka
+                RideEvent rideCancelledEvent = RideEvent.builder()
+                        .rideId(rideId)
+                        .driverId(driverId)
+                        .eventType(RideEventType.CANCELLED)
+                        .timestamp(Instant.now().toString())
+                        .build();
+
+                String rideCancelledJson = objectMapper.writeValueAsString(rideCancelledEvent);
+                driverEventProducer.publishDriverEvent(rideCancelledJson, driverId);
+
+                System.out.println("Ride Cancelled event sent to Kafka driver-events");
 
             }
 

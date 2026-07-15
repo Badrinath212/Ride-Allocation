@@ -94,6 +94,24 @@ public class AwsConfig {
     }
 
     @Bean
+    public DynamoDbTable<DailyDriverAnalytics> dailyDriverAnalytics(DynamoDbEnhancedClient ddcEnhanced) {
+        try {
+            return ddcEnhanced.table("daily-driver-analytics", TableSchema.fromBean(DailyDriverAnalytics.class));
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Bean
+    public DynamoDbTable<HourlyDriverAnalytics> hourlyDriverAnalytics(DynamoDbEnhancedClient ddcEnhanced) {
+        try {
+            return ddcEnhanced.table("hourly-driver-analytics", TableSchema.fromBean(HourlyDriverAnalytics.class));
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Bean
     public SqsClient sqsClient() {
         try {
             return SqsClient.builder()

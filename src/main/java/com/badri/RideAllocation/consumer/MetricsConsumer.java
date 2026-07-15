@@ -19,7 +19,7 @@ public class MetricsConsumer {
     }
 
     @KafkaListener(
-            topics = "driver-events",
+            topics = "driver-events-metrics",
             groupId = "metrics-group"
     )
     public void consumeDriverRideResponseEvent(String event) {
