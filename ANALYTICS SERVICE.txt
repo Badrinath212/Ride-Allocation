@@ -256,4 +256,5 @@ THREAD: DashboardPublisher
     -- accepted (implemented)
     -- cancelled (implemented)
     -- started (implemented)
-    -- completed
+    -- completed (implemented)
+  -  listen the driver events and update the db (implemented)

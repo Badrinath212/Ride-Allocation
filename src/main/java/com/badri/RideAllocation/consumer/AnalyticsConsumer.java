@@ -190,4 +190,185 @@ public class AnalyticsConsumer {
             }
         }
     }
+
+    @KafkaListener(
+            topics = "driver-events",
+            groupId = "analytics-consumer"
+    )
+    public void consumeDriverEvent(String event) {
+        RideEvent rideEvent = objectMapper.readValue(event, RideEvent.class);
+
+        Instant timestamp = Instant.parse(rideEvent.getTimestamp());
+
+        ZoneId zoneId = ZoneId.of("Asia/Kolkata");
+        ZonedDateTime zonedDateTime = timestamp.atZone(zoneId);
+        String date = zonedDateTime.toLocalDate().toString();
+        String hour = String.valueOf(zonedDateTime.getHour());
+
+        String dateHour = date + "#" + hour;
+
+        switch (rideEvent.getEventType()) {
+            case REQUESTED -> {
+                UpdateItemRequest updateTotalRequestsRequest = UpdateItemRequest.builder()
+                        .tableName("daily-driver-analytics")
+                        .key(Map.of(
+                                "driverId", AttributeValue.fromS(rideEvent.getDriverId()),
+                                "date", AttributeValue.fromS(date)
+                        )).updateExpression("ADD totalRequests :inc")
+                        .expressionAttributeValues(Map.of(
+                                ":inc", AttributeValue.fromN("1")
+                        )).build();
+                dynamoDbClient.updateItem(updateTotalRequestsRequest);
+                System.out.printf("TotalRequests are updated for driverId: %s", rideEvent.getDriverId());
+
+                // Hourly-driver-analytics
+                UpdateItemRequest updateItemRequest = UpdateItemRequest.builder()
+                        .tableName("hourly-driver-analytics")
+                        .key(Map.of(
+                                "driverId", AttributeValue.fromS(rideEvent.getDriverId()),
+                                "dateHour", AttributeValue.fromS(dateHour)
+                        )).updateExpression("ADD totalRequests :inc")
+                        .expressionAttributeValues(Map.of(
+                                ":inc", AttributeValue.fromN("1")
+                        )).build();
+                dynamoDbClient.updateItem(updateItemRequest);
+                System.out.printf("Hourly TotalRequests are updated for driverId: %s", rideEvent.getDriverId());
+            }
+            case REJECTED -> {
+                UpdateItemRequest updateRejectedRequest = UpdateItemRequest.builder()
+                        .tableName("daily-driver-analytics")
+                        .key(Map.of(
+                                "driverId", AttributeValue.fromS(rideEvent.getDriverId()),
+                                "date", AttributeValue.fromS(date)
+                        )).updateExpression("ADD totalRejected :inc")
+                        .expressionAttributeValues(Map.of(
+                                ":inc", AttributeValue.fromN("1")
+                        )).build();
+                dynamoDbClient.updateItem(updateRejectedRequest);
+                System.out.printf("TotalRejected was updated for driverId: %s", rideEvent.getDriverId());
+
+                // Hourly-driver-analytics
+                UpdateItemRequest updateItemRequest = UpdateItemRequest.builder()
+                        .tableName("hourly-driver-analytics")
+                        .key(Map.of(
+                                "driverId", AttributeValue.fromS(rideEvent.getDriverId()),
+                                "dateHour", AttributeValue.fromS(dateHour)
+                        )).updateExpression("ADD totalRejected :inc")
+                        .expressionAttributeValues(Map.of(
+                                ":inc", AttributeValue.fromN("1")
+                        )).build();
+                dynamoDbClient.updateItem(updateItemRequest);
+                System.out.printf("Hourly TotalRejected are updated for driverId: %s", rideEvent.getDriverId());
+            }
+            case CANCELLED -> {
+                UpdateItemRequest updateCancelledRequest = UpdateItemRequest.builder()
+                        .tableName("daily-driver-analytics")
+                        .key(Map.of(
+                                "driverId", AttributeValue.fromS(rideEvent.getDriverId()),
+                                "date", AttributeValue.fromS(date)
+                        )).updateExpression("ADD totalCancelled :inc")
+                        .expressionAttributeValues(Map.of(
+                                ":inc", AttributeValue.fromN("1")
+                        )).build();
+                dynamoDbClient.updateItem(updateCancelledRequest);
+                System.out.printf("TotalCancelled are updated for driverId: %s", rideEvent.getDriverId());
+
+                // Hourly-driver-analytics
+                UpdateItemRequest updateItemRequest = UpdateItemRequest.builder()
+                        .tableName("hourly-driver-analytics")
+                        .key(Map.of(
+                                "driverId", AttributeValue.fromS(rideEvent.getDriverId()),
+                                "dateHour", AttributeValue.fromS(dateHour)
+                        )).updateExpression("ADD totalCancelled :inc")
+                        .expressionAttributeValues(Map.of(
+                                ":inc", AttributeValue.fromN("1")
+                        )).build();
+                dynamoDbClient.updateItem(updateItemRequest);
+                System.out.printf("Hourly TotalCancelled are updated for driverId: %s", rideEvent.getDriverId());
+            }
+            case ACCEPTED -> {
+                UpdateItemRequest updateItemRequest = UpdateItemRequest.builder()
+                        .tableName("daily-driver-analytics")
+                        .key(Map.of(
+                                "driverId", AttributeValue.fromS(rideEvent.getDriverId()),
+                                "date", AttributeValue.fromS(date)
+                        )).updateExpression("ADD totalAccepted :inc")
+                        .expressionAttributeValues(Map.of(
+                                ":inc", AttributeValue.fromN("1")
+                        )).build();
+                dynamoDbClient.updateItem(updateItemRequest);
+                System.out.printf("TotalAccepted are updated for driverId: %s", rideEvent.getDriverId());
+
+                // Hourly-driver-analytics
+                UpdateItemRequest updateItemRequestForHourly = UpdateItemRequest.builder()
+                        .tableName("hourly-driver-analytics")
+                        .key(Map.of(
+                                "driverId", AttributeValue.fromS(rideEvent.getDriverId()),
+                                "dateHour", AttributeValue.fromS(dateHour)
+                        )).updateExpression("ADD totalAccepted :inc")
+                        .expressionAttributeValues(Map.of(
+                                ":inc", AttributeValue.fromN("1")
+                        )).build();
+                dynamoDbClient.updateItem(updateItemRequestForHourly);
+                System.out.printf("Hourly TotalAccepted are updated for driverId: %s", rideEvent.getDriverId());
+            }
+            case STARTED -> {
+                UpdateItemRequest updateItemRequest = UpdateItemRequest.builder()
+                        .tableName("daily-driver-analytics")
+                        .key(Map.of(
+                                "driverId", AttributeValue.fromS(rideEvent.getDriverId()),
+                                "date", AttributeValue.fromS(date)
+                        )).updateExpression("ADD totalStarted :inc")
+                        .expressionAttributeValues(Map.of(
+                                ":inc", AttributeValue.fromN("1")
+                        )).build();
+                dynamoDbClient.updateItem(updateItemRequest);
+                System.out.printf("TotalStarted are updated for driverId: %s", rideEvent.getDriverId());
+
+                // Hourly-driver-analytics
+                UpdateItemRequest updateItemRequestForHourly = UpdateItemRequest.builder()
+                        .tableName("hourly-driver-analytics")
+                        .key(Map.of(
+                                "driverId", AttributeValue.fromS(rideEvent.getDriverId()),
+                                "dateHour", AttributeValue.fromS(dateHour)
+                        )).updateExpression("ADD totalStarted :inc")
+                        .expressionAttributeValues(Map.of(
+                                ":inc", AttributeValue.fromN("1")
+                        )).build();
+                dynamoDbClient.updateItem(updateItemRequestForHourly);
+                System.out.printf("Hourly TotalStarted are updated for driverId: %s", rideEvent.getDriverId());
+            }
+            case COMPLETED -> {
+                UpdateItemRequest updateItemRequest = UpdateItemRequest.builder()
+                        .tableName("daily-driver-analytics")
+                        .key(Map.of(
+                                "driverId", AttributeValue.fromS(rideEvent.getDriverId()),
+                                "date", AttributeValue.fromS(date)
+                        )).updateExpression("ADD totalCompleted :inc, totalRevenue :fare")
+                        .expressionAttributeValues(Map.of(
+                                ":inc", AttributeValue.fromN("1") ,
+                                ":fare", AttributeValue.fromN(String.valueOf(rideEvent.getTotalFare()))
+                        )).build();
+                dynamoDbClient.updateItem(updateItemRequest);
+                System.out.printf("TotalCompleted are updated for driverId: %s", rideEvent.getDriverId());
+
+                // Hourly-driver-analytics
+                UpdateItemRequest updateItemRequestForHourly = UpdateItemRequest.builder()
+                        .tableName("hourly-driver-analytics")
+                        .key(Map.of(
+                                "driverId", AttributeValue.fromS(rideEvent.getDriverId()),
+                                "dateHour", AttributeValue.fromS(dateHour)
+                        )).updateExpression("ADD totalCompleted :inc, totalRevenue :fare")
+                        .expressionAttributeValues(Map.of(
+                                ":inc", AttributeValue.fromN("1"),
+                                ":fare", AttributeValue.fromN(String.valueOf(rideEvent.getTotalFare()))
+                        )).build();
+                dynamoDbClient.updateItem(updateItemRequestForHourly);
+                System.out.printf("Hourly TotalCompleted are updated for driverId: %s", rideEvent.getDriverId());
+            }
+            case null, default -> {
+                System.out.println("Driver event is required to update driver analytics");
+            }
+        }
+    }
 }

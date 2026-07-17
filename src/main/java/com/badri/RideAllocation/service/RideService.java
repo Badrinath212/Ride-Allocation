@@ -190,6 +190,19 @@ public class RideService {
             if(driverProfile != null) {
                 driverProfile.setTotalCompleted(driverProfile.getTotalCompleted() + 1);
                 System.out.println("Driver total completed rides updated");
+
+                // send the Kafka request for driver analytics
+                RideEvent rideCompletedEvent = RideEvent.builder()
+                        .rideId(rideId)
+                        .eventType(RideEventType.COMPLETED)
+                        .driverId(rideItem.getDriverId())
+                        .timestamp(Instant.now().toString())
+                        .totalFare(rideItem.getTotalFare())
+                        .build();
+                String rideCompletedJson = objectMapper.writeValueAsString(rideCompletedEvent);
+
+                driverEventProducer.publishDriverEvent(rideCompletedJson, rideItem.getDriverId());
+                System.out.printf("Ride complete event sent to Kafka for driver analytics: %s", rideItem.getDriverId());
             }
 
             return "Ride Completed";
