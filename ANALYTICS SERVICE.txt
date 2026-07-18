@@ -258,3 +258,10 @@ THREAD: DashboardPublisher
     -- started (done)
     -- completed (implemented)
   -  listen the driver events and update the db (done)
+
+--- driver analytics api's
+ - getDriverDailyAnalytics
+ - getDriverHourlyAnalytics
+
+
+-- Need to write the exceptions in controller

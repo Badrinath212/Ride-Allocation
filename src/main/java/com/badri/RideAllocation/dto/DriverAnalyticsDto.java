@@ -18,4 +18,10 @@ public class DriverAnalyticsDto {
     private String name;
     private Double rating;
     private Double acceptanceRate;
+
+    private String date;
+    private Long totalStarted;
+    private Long totalCancelled;
+    private Double totalRevenue;
+    private String dateHour;
 }

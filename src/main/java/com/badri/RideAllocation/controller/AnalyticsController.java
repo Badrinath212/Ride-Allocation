@@ -4,9 +4,12 @@ import com.badri.RideAllocation.dto.DailyAnalyticsResponseDto;
 import com.badri.RideAllocation.dto.DriverAnalyticsDto;
 import com.badri.RideAllocation.dto.HourlyAnalyticsResponseDto;
 import com.badri.RideAllocation.service.AnalyticsService;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -16,6 +19,7 @@ import java.time.LocalDate;
 
 @RestController
 @RequestMapping("/ride/analytics")
+@Validated
 public class AnalyticsController {
 
     private final AnalyticsService analyticsService;
@@ -63,10 +67,40 @@ public class AnalyticsController {
             LocalDate startDate,
             @RequestParam
             @DateTimeFormat(pattern = "yyyy-MM-dd")
-            LocalDate endDate
-    ) {
+            LocalDate endDate) {
         System.out.println("StartDate: " + startDate + " " + "EndDate: " + endDate);
-
         return null;
+    }
+
+    @GetMapping("/driver-analytics/daily")
+    public ResponseEntity<DriverAnalyticsDto> getDriverDailyAnalytics(
+            @RequestParam
+            String driverId,
+            @RequestParam
+            @DateTimeFormat(pattern = "yyyy-MM-dd")
+            LocalDate date) {
+
+        System.out.println("driverId: " + driverId + " date: " + date);
+        DriverAnalyticsDto response = analyticsService.getDriverDailyAnalytics(driverId, date);
+
+        return ResponseEntity.status(HttpStatus.OK).body(response);
+    }
+
+    @GetMapping("/driver-analytics/hourly")
+    public ResponseEntity<DriverAnalyticsDto> getDriverHourlyAnalytics(
+            @RequestParam
+            String driverId,
+            @RequestParam
+            @DateTimeFormat(pattern = "yyyy-MM-dd")
+            LocalDate date,
+            @RequestParam
+            @Min(0)
+            @Max(23)
+            int hour) {
+
+        System.out.println("driverId: " + driverId + " date: " + date + " hour: " + hour);
+        DriverAnalyticsDto response = analyticsService.getDriverHourlyAnalytics(driverId, date, hour);
+
+        return ResponseEntity.status(HttpStatus.OK).body(response);
     }
 }

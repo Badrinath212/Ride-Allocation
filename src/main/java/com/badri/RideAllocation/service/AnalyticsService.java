@@ -22,7 +22,6 @@ public class AnalyticsService {
     public DailyAnalyticsResponseDto getDailyAnalytics(LocalDate date) {
 
         DailyAnalyticsResponseDto responseDto = analyticsRepository.getDailyAnalytics(date.toString());
-
         if(responseDto == null) throw new ResourceNotFoundException("Resource Not Available");
 
         return responseDto;
@@ -42,7 +41,22 @@ public class AnalyticsService {
     public DriverAnalyticsDto getDriverAnalytics(String driverId) {
 
         DriverAnalyticsDto responseDto = analyticsRepository.getDriverAnalytics(driverId);
+        if(responseDto == null) throw new ResourceNotFoundException("Resource Not Available");
 
+        return responseDto;
+    }
+
+    public DriverAnalyticsDto getDriverDailyAnalytics(String driverId, LocalDate date) {
+
+        DriverAnalyticsDto responseDto = analyticsRepository.getDriverDailyAnalytics(driverId, date);
+        if(responseDto == null) throw new ResourceNotFoundException("Resource Not Available");
+
+        return responseDto;
+    }
+
+    public DriverAnalyticsDto getDriverHourlyAnalytics(String driverId, LocalDate date, int hour) {
+
+        DriverAnalyticsDto responseDto = analyticsRepository.getDriverHourlyAnalytics(driverId, date, hour);
         if(responseDto == null) throw new ResourceNotFoundException("Resource Not Available");
 
         return responseDto;
