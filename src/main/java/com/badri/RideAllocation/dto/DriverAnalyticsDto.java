@@ -16,6 +16,6 @@ public class DriverAnalyticsDto {
     private Long totalRejected;
     private Long totalCompleted;
     private String name;
-    private Integer rating;
+    private Double rating;
     private Double acceptanceRate;
 }

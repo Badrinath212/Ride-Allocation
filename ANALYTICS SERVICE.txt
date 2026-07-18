@@ -248,13 +248,13 @@ THREAD: DashboardPublisher
 -- weekly comparison of analytics (pending) 
 -----------------
 - Driver Analytics
-  - table creation (pending)
-  - Mapping (completed)
+  - table creation (done)
+  - Mapping (done)
   - Make Kafka events by the driver
-    -- request (implemented)
-    -- rejected (implemented)
-    -- accepted (implemented)
-    -- cancelled (implemented)
-    -- started (implemented)
+    -- request (done)
+    -- rejected (done)
+    -- accepted (done)
+    -- cancelled (done)
+    -- started (done)
     -- completed (implemented)
-  -  listen the driver events and update the db (implemented)
+  -  listen the driver events and update the db (done)

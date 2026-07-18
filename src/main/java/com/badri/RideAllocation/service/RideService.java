@@ -162,8 +162,13 @@ public class RideService {
         try {
             // mark the ride as completed
             Ride rideItem = rideTable.getItem(Key.builder().partitionValue(rideId).build());
+            System.out.println("Status: " + rideItem.getStatus());
+            if(!rideItem.getStatus().equals("RIDE_STARTED") || rideItem.getStatus().equals("COMPLETED")){
+                return "Invalid request";
+            }
             rideItem.setStatus("COMPLETED");
             rideItem.setRideCompletedAt(Instant.now());
+            rideItem.setTotalFare(rideItem.getEstimatedFare());
             rideTable.updateItem(rideItem);
 
             // need to add the driver to active_drivers
@@ -200,6 +205,7 @@ public class RideService {
                         .totalFare(rideItem.getTotalFare())
                         .build();
                 String rideCompletedJson = objectMapper.writeValueAsString(rideCompletedEvent);
+                System.out.println("RideCompletedJson : " + rideCompletedJson);
 
                 driverEventProducer.publishDriverEvent(rideCompletedJson, rideItem.getDriverId());
                 System.out.printf("Ride complete event sent to Kafka for driver analytics: %s", rideItem.getDriverId());

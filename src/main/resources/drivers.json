@@ -7,7 +7,7 @@
   {"driverId":"6","name":"Driver 6","status":"ONLINE","rating":4.7,"vehicleType":"CAR","totalRequests":0,"totalAccepted":0,"totalRejected":0},
   {"driverId":"7","name":"Driver 7","status":"ONLINE","rating":4.9,"vehicleType":"CAR","totalRequests":0,"totalAccepted":0,"totalRejected":0},
   {"driverId":"8","name":"Driver 8","status":"ONLINE","rating":4.8,"vehicleType":"CAR","totalRequests":0,"totalAccepted":0,"totalRejected":0},
-  {"driverId":"9","name":"Driver 9","status":"ONLINE","rating":4.7,"vehicleType":"CAR","totalRequests":0,"totalAccepted":0,"totalRejected":0},
+  {"driverId":"9","name":"Driver 9","status":"ONLINE","rating":4.7,"vehicleType":"CAR","totalRequests":0,"totalAccepted":0,"totalRejected":0, "totalCompleted":0},
   {"driverId":"10","name":"Driver 10","status":"ONLINE","rating":4.8,"vehicleType":"CAR","totalRequests":0,"totalAccepted":0,"totalRejected":0},
 
   {"driverId":"11","name":"Driver 11","status":"ONLINE","rating":4.9,"vehicleType":"CAR","totalRequests":0,"totalAccepted":0,"totalRejected":0},
@@ -16,9 +16,9 @@
   {"driverId":"14","name":"Driver 14","status":"ONLINE","rating":4.9,"vehicleType":"CAR","totalRequests":0,"totalAccepted":0,"totalRejected":0},
   {"driverId":"15","name":"Driver 15","status":"ONLINE","rating":4.8,"vehicleType":"CAR","totalRequests":0,"totalAccepted":0,"totalRejected":0},
   {"driverId":"16","name":"Driver 16","status":"ONLINE","rating":4.6,"vehicleType":"CAR","totalRequests":0,"totalAccepted":0,"totalRejected":0},
-  {"driverId":"17","name":"Driver 17","status":"ONLINE","rating":4.8,"vehicleType":"CAR","totalRequests":0,"totalAccepted":0,"totalRejected":0},
+  {"driverId":"17","name":"Driver 17","status":"ONLINE","rating":4.8,"vehicleType":"CAR","totalRequests":0,"totalAccepted":0,"totalRejected":0, "totalCompleted":0},
   {"driverId":"18","name":"Driver 18","status":"ONLINE","rating":4.9,"vehicleType":"CAR","totalRequests":0,"totalAccepted":0,"totalRejected":0},
-  {"driverId":"19","name":"Driver 19","status":"ONLINE","rating":4.7,"vehicleType":"CAR","totalRequests":0,"totalAccepted":0,"totalRejected":0},
+  {"driverId":"19","name":"Driver 19","status":"ONLINE","rating":4.7,"vehicleType":"CAR","totalRequests":0,"totalAccepted":0,"totalRejected":0, "totalCompleted":0},
   {"driverId":"20","name":"Driver 20","status":"ONLINE","rating":4.8,"vehicleType":"CAR","totalRequests":0,"totalAccepted":0,"totalRejected":0},
 
   {"driverId":"21","name":"Driver 21","status":"ONLINE","rating":4.9,"vehicleType":"CAR","totalRequests":0,"totalAccepted":0,"totalRejected":0},
