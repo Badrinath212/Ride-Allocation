@@ -94,8 +94,8 @@ public class AnalyticsController {
             @DateTimeFormat(pattern = "yyyy-MM-dd")
             LocalDate date,
             @RequestParam
-            @Min(0)
-            @Max(23)
+            @Min(value = 0, message = "Hour must be at least 0")
+            @Max(value = 23, message = "Hour cannot be exceed 23")
             int hour) {
 
         System.out.println("driverId: " + driverId + " date: " + date + " hour: " + hour);
