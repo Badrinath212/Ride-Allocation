@@ -93,6 +93,8 @@ public class AnalyticsRepository {
                 Key.builder().partitionValue(driverId).sortValue(date.toString()).build()
         );
 
+        if(dailyDriverAnalytics == null) return null;
+
         return DriverAnalyticsDto.builder()
                 .driverId(dailyDriverAnalytics.getDriverId())
                 .date(dailyDriverAnalytics.getDate())
@@ -112,6 +114,8 @@ public class AnalyticsRepository {
         HourlyDriverAnalytics hourlyDriverAnalytics = hourlyDriverAnalyticsTable.getItem(
                 Key.builder().partitionValue(driverId).sortValue(dateHour).build()
         );
+
+        if(hourlyDriverAnalytics == null) return null;
 
         return DriverAnalyticsDto.builder()
                 .driverId(hourlyDriverAnalytics.getDriverId())

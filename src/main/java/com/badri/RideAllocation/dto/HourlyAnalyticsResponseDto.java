@@ -18,4 +18,9 @@ public class HourlyAnalyticsResponseDto {
     private Long totalCompleted;
     private Long totalCancelled;
     private Double totalRevenue;
+
+    private Double acceptanceRate;
+    private Double cancellationRate;
+    private Double completionRate;
+    private Double avgRevenuePerRide;
 }

@@ -264,4 +264,42 @@ THREAD: DashboardPublisher
  - getDriverHourlyAnalytics
 
 
--- Need to write the exceptions in controller
+-- Need to write the exceptions in controller(done)
+
+-- testing two api's done 
+
+
+--- Business Insights 
+  -- Ride analytics (KPI's)
+    -- acceptance rate
+    -- cancellation rate     (implemented) 
+    -- completion rate
+    -- avg revenue per ride
+
+    -- Revenue growth
+    -- Ride growth
+    -- Acceptance rate change
+    -- Cancellation rate change
+
+    Average Ride Distance
+    Average Ride Duration
+    Average Fare
+    Peak Hour Revenue
+    Peak Hour Ride Count
+
+  -- Driver Analytics (KPI's)
+    -- acceptance rate
+    -- cancellation rate     (implemented)
+    -- completion rate
+    -- avg revenue per ride
+
+    Average Earnings Per Hour
+    Average Ride Distance
+    Average Ride Duration
+    Driver Active Hours
+    Revenue Per Active Hour
+
+    -- Revenue growth
+    -- Ride growth
+    -- Acceptance rate change
+    -- Cancellation rate change
